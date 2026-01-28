@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教会学校 出席簿アプリ</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (JSX compilation) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        
+        @media print {
+            @page {
+                size: B4 landscape; /* B4 横向き */
+                margin: 10mm;
+            }
+            body { 
+                font-size: 10pt; 
+                background: white;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .no-print { display: none !important; }
+            .print-border { border: 1px solid #000; }
+            .overflow-x-auto { overflow-x: visible; }
+            /* 印刷時はスクロール領域を全展開 */
+            .absolute.inset-0 { position: static; height: auto; }
+            main { overflow: visible; }
+            table { width: 100%; }
+            
+            /* 印刷時はドロップダウンの中身などを隠す */
+            .dropdown-content { display: none; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.2s ease-out forwards;
+        }
+        
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(-5%); }
+            50% { transform: translateY(5%); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-amber-50 text-slate-800 font-sans flex flex-col min-h-screen">
+    <div id="root" class="flex-grow flex flex-col h-screen"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- アイコン定義 ---
+        const ICONS = {
+            Church: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9h4"/><path d="M12 7v5"/><path d="M4 22h16a2 2 0 0 0 2-2V10L12 2 2 10v10a2 2 0 0 0 2 2z"/></svg>),
+            UserPlus: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" x2="20" y1="8" y2="14"/><line x1="23" x2="17" y1="11" y2="11"/></svg>),
+            Download: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>),
+            Printer: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>),
+            Users: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>),
+            CircleCheck: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>),
+            X: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 18 12"/></svg>),
+            Clock: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>),
+            Trash2: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>),
+            Calendar: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>),
+            MinusCircle: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>),
+            Star: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>),
+            Gift: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect width="20" height="5" x="2" y="7"/><line x1="12" x2="12" y1="22" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>),
+            ChevronDown: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>),
+            ArrowUp: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>),
+            ArrowDown: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>),
+            Edit: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>),
+            ListFilter: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>),
+            Database: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>),
+            Save: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>),
+            Upload: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>)
+        };
+
+        const Icon = ({ name, size = 18, className }) => {
+            const IconComponent = ICONS[name];
+            return IconComponent ? <IconComponent width={size} height={size} className={className} /> : null;
+        };
+
+        // --- 学年複数選択コンポーネント ---
+        const GradeSelector = ({ selectedGrades, onChange }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const dropdownRef = useRef(null);
+
+            useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                        setIsOpen(false);
+                    }
+                };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+
+            const grades = [
+                { val: "1", label: "小1" },
+                { val: "2", label: "小2" },
+                { val: "3", label: "小3" },
+                { val: "4", label: "小4" },
+                { val: "5", label: "小5" },
+                { val: "6", label: "小6" },
+            ];
+
+            const toggleGrade = (val) => {
+                let newGrades;
+                if (selectedGrades.includes(val)) {
+                    newGrades = selectedGrades.filter(g => g !== val);
+                } else {
+                    newGrades = [...selectedGrades, val].sort();
+                }
+                onChange(newGrades);
+            };
+
+            const displayText = selectedGrades.length > 0 
+                ? selectedGrades.map(g => `小${g}`).join(", ") 
+                : "選択";
+
+            return (
+                <div className="relative" ref={dropdownRef}>
+                    <button 
+                        className="border border-gray-300 rounded px-2 py-1 bg-white flex items-center gap-2 min-w-[80px] justify-between text-sm"
+                        onClick={() => setIsOpen(!isOpen)}
+                    >
+                        <span className="truncate max-w-[120px]">{displayText}</span>
+                        <Icon name="ChevronDown" size={14} className="text-gray-500" />
+                    </button>
+                    
+                    {isOpen && (
+                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-40 p-2 dropdown-content">
+                            <div className="flex flex-col gap-1">
+                                {grades.map((grade) => (
+                                    <label key={grade.val} className="flex items-center gap-2 p-1.5 hover:bg-amber-50 rounded cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedGrades.includes(grade.val)}
+                                            onChange={() => toggleGrade(grade.val)}
+                                            className="accent-amber-500"
+                                        />
+                                        <span className="text-sm text-gray-700">{grade.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- メインアプリ ---
+        const App = () => {
+            const today = new Date();
+            const currentMonth = today.getMonth() + 1;
+            const initialSemester = (currentMonth >= 4 && currentMonth <= 9) ? "first" : "second";
+            const initialFiscalYear = (currentMonth >= 1 && currentMonth <= 3) ? today.getFullYear() - 1 : today.getFullYear();
+
+            // --- State ---
+            const [classInfo, setClassInfo] = useState(() => {
+                const saved = localStorage.getItem('cs_class_info_v2');
+                const parsed = saved ? JSON.parse(saved) : null;
+                if (parsed) {
+                    if (typeof parsed.grade === 'string') {
+                        parsed.grade = parsed.grade ? [parsed.grade] : [];
+                    }
+                    return parsed;
+                } else {
+                    return {
+                        fiscalYear: initialFiscalYear,
+                        semester: initialSemester,
+                        grade: [],
+                        gender: "",
+                        teacher: ""
+                    };
+                }
+            });
+
+            // 生徒リスト
+            const [students, setStudents] = useState(() => {
+                const saved = localStorage.getItem('cs_students_v3');
+                return saved ? JSON.parse(saved) : [
+                    { id: 1, name: "山田 太郎", memo: "", birthday: "2018-04-15", initialPoints: 0, grade: "1" },
+                    { id: 2, name: "鈴木 花子", memo: "ピアノ", birthday: "2018-08-20", initialPoints: 10, grade: "3" },
+                ];
+            });
+
+            const [attendance, setAttendance] = useState(() => {
+                const saved = localStorage.getItem('cs_attendance');
+                return saved ? JSON.parse(saved) : {};
+            });
+
+            const [bonusMonths, setBonusMonths] = useState(() => {
+                const saved = localStorage.getItem('cs_bonus_months');
+                return saved ? JSON.parse(saved) : {};
+            });
+
+            // 表示設定State
+            const [viewConfig, setViewConfig] = useState({
+                sort: 'manual', // manual, grade, points_desc, birthday
+                filterGrades: [], // empty = all
+                filterBirthMonth: 'all' // all, 1, 2...
+            });
+
+            const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+            const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+            const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+            const [isViewConfigModalOpen, setIsViewConfigModalOpen] = useState(false); // 表示設定モーダル
+            const [isDataModalOpen, setIsDataModalOpen] = useState(false); // データ管理モーダル
+            const [studentToDelete, setStudentToDelete] = useState(null);
+            
+            // 編集用ステート
+            const [editingStudent, setEditingStudent] = useState(null);
+
+            const [newStudentName, setNewStudentName] = useState("");
+            const [newStudentGrade, setNewStudentGrade] = useState("");
+            const [newStudentBirthday, setNewStudentBirthday] = useState("");
+            const [newStudentInitialPoints, setNewStudentInitialPoints] = useState(0);
+
+            // --- Persistence ---
+            useEffect(() => localStorage.setItem('cs_class_info_v2', JSON.stringify(classInfo)), [classInfo]);
+            useEffect(() => localStorage.setItem('cs_students_v3', JSON.stringify(students)), [students]);
+            useEffect(() => localStorage.setItem('cs_attendance', JSON.stringify(attendance)), [attendance]);
+            useEffect(() => localStorage.setItem('cs_bonus_months', JSON.stringify(bonusMonths)), [bonusMonths]);
+
+            // --- Logic ---
+            const sundays = useMemo(() => {
+                const dates = [];
+                const year = parseInt(classInfo.fiscalYear);
+                let startMonth, startYear;
+                
+                if (classInfo.semester === "first") {
+                    startMonth = 3; 
+                    startYear = year;
+                } else {
+                    startMonth = 9; 
+                    startYear = year;
+                }
+
+                let current = new Date(startYear, startMonth, 1, 12, 0, 0);
+                
+                while (current.getDay() !== 0) {
+                    current.setDate(current.getDate() + 1);
+                }
+
+                const endDate = classInfo.semester === "first" 
+                    ? new Date(year, 8, 30, 12, 0, 0)
+                    : new Date(year + 1, 2, 31, 12, 0, 0);
+
+                while (current <= endDate) {
+                    dates.push(new Date(current));
+                    current.setDate(current.getDate() + 7);
+                }
+                return dates;
+            }, [classInfo.fiscalYear, classInfo.semester]);
+
+            const sundaysByMonth = useMemo(() => {
+                const groups = [];
+                let currentGroup = null;
+
+                sundays.forEach(date => {
+                    const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+                    
+                    if (!currentGroup || currentGroup.key !== monthKey) {
+                        if (currentGroup) groups.push(currentGroup);
+                        currentGroup = {
+                            key: monthKey,
+                            year: date.getFullYear(),
+                            month: date.getMonth() + 1,
+                            dates: []
+                        };
+                    }
+                    currentGroup.dates.push(date);
+                });
+                if (currentGroup) groups.push(currentGroup);
+                return groups;
+            }, [sundays]);
+
+            const formatDateKey = (date) => date.toISOString().split('T')[0];
+
+            // --- Stats Calculation (Used for View/Sorting) ---
+            const calculateStats = (student) => {
+                let presentCount = 0;
+                let absentCount = 0;
+                let totalPoints = student.initialPoints || 0;
+
+                sundays.forEach(date => {
+                    const key = `${student.id}_${formatDateKey(date)}`;
+                    const status = attendance[key];
+                    const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+                    const isBonus = bonusMonths[monthKey];
+                    const pointsPerAttend = isBonus ? 3 : 1;
+
+                    if (status === 'present') {
+                        presentCount++;
+                        totalPoints += pointsPerAttend;
+                    }
+                    if (status === 'late') {
+                        presentCount++;
+                    }
+                    if (status === 'absent') absentCount++;
+                });
+                return { presentCount, absentCount, totalPoints };
+            };
+
+            // --- Processed Students (Filter & Sort) ---
+            const processedStudents = useMemo(() => {
+                // 1. Calculate Stats for sorting
+                let list = students.map(s => ({
+                    ...s,
+                    stats: calculateStats(s)
+                }));
+
+                // 2. Filter
+                if (viewConfig.filterGrades.length > 0) {
+                    list = list.filter(s => viewConfig.filterGrades.includes(s.grade));
+                }
+                if (viewConfig.filterBirthMonth !== 'all') {
+                    const targetMonth = parseInt(viewConfig.filterBirthMonth);
+                    list = list.filter(s => {
+                        if (!s.birthday) return false;
+                        const d = new Date(s.birthday);
+                        return (d.getMonth() + 1) === targetMonth;
+                    });
+                }
+
+                // 3. Sort
+                if (viewConfig.sort === 'grade') {
+                    list.sort((a, b) => (a.grade || "9").localeCompare(b.grade || "9"));
+                } else if (viewConfig.sort === 'points_desc') {
+                    list.sort((a, b) => b.stats.totalPoints - a.stats.totalPoints);
+                } else if (viewConfig.sort === 'birthday') {
+                    list.sort((a, b) => {
+                        if (!a.birthday) return 1;
+                        if (!b.birthday) return -1;
+                        const dA = new Date(a.birthday);
+                        const dB = new Date(b.birthday);
+                        // Sort by Month-Day (ignore year)
+                        const mdA = (dA.getMonth() + 1) * 100 + dA.getDate();
+                        const mdB = (dB.getMonth() + 1) * 100 + dB.getDate();
+                        return mdA - mdB;
+                    });
+                }
+                // 'manual' uses original order (which is preserved since we mapped from students)
+
+                return list;
+            }, [students, attendance, bonusMonths, viewConfig, sundays]);
+
+
+            // --- Handlers ---
+            const toggleAttendance = (studentId, dateKey) => {
+                const key = `${studentId}_${dateKey}`;
+                const currentStatus = attendance[key];
+                let nextStatus;
+                
+                if (currentStatus === 'present') nextStatus = 'absent';
+                else if (currentStatus === 'absent') nextStatus = 'late';
+                else if (currentStatus === 'late') nextStatus = 'holiday';
+                else if (currentStatus === 'holiday') nextStatus = null;
+                else nextStatus = 'present';
+
+                const newAttendance = { ...attendance };
+                if (nextStatus === null) delete newAttendance[key];
+                else newAttendance[key] = nextStatus;
+                setAttendance(newAttendance);
+            };
+
+            const toggleBonusMonth = (monthKey) => {
+                setBonusMonths(prev => ({
+                    ...prev,
+                    [monthKey]: !prev[monthKey]
+                }));
+            };
+
+            const updateStudentInitialPoints = (id, points) => {
+                const val = parseInt(points) || 0;
+                setStudents(students.map(s => s.id === id ? { ...s, initialPoints: val } : s));
+            };
+
+            const handleSaveStudent = (e) => {
+                e.preventDefault();
+                if (!newStudentName.trim()) return;
+
+                if (editingStudent) {
+                    setStudents(students.map(s => s.id === editingStudent.id ? {
+                        ...s,
+                        name: newStudentName,
+                        grade: newStudentGrade,
+                        birthday: newStudentBirthday,
+                        initialPoints: parseInt(newStudentInitialPoints) || 0
+                    } : s));
+                } else {
+                    const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
+                    setStudents([...students, { 
+                        id: newId, 
+                        name: newStudentName, 
+                        memo: "", 
+                        birthday: newStudentBirthday,
+                        initialPoints: parseInt(newStudentInitialPoints) || 0,
+                        grade: newStudentGrade
+                    }]);
+                }
+                closeModal();
+            };
+
+            const openAddModal = () => {
+                setEditingStudent(null);
+                setNewStudentName("");
+                setNewStudentGrade("");
+                setNewStudentBirthday("");
+                setNewStudentInitialPoints(0);
+                setIsAddModalOpen(true);
+            };
+
+            const openEditModal = (student) => {
+                setEditingStudent(student);
+                setNewStudentName(student.name);
+                setNewStudentGrade(student.grade || "");
+                setNewStudentBirthday(student.birthday || "");
+                setNewStudentInitialPoints(student.initialPoints || 0);
+                setIsAddModalOpen(true);
+            };
+
+            const closeModal = () => {
+                setIsAddModalOpen(false);
+                setEditingStudent(null);
+                setNewStudentName("");
+                setNewStudentGrade("");
+                setNewStudentBirthday("");
+                setNewStudentInitialPoints(0);
+            };
+
+            const executeDeleteStudent = () => {
+                if (studentToDelete) {
+                    setStudents(students.filter(s => s.id !== studentToDelete.id));
+                    setStudentToDelete(null);
+                    setIsDeleteModalOpen(false);
+                }
+            };
+            
+            const moveStudent = (index, direction) => {
+                const newStudents = [...students];
+                if (direction === 'up' && index > 0) {
+                    [newStudents[index], newStudents[index - 1]] = [newStudents[index - 1], newStudents[index]];
+                } else if (direction === 'down' && index < newStudents.length - 1) {
+                    [newStudents[index], newStudents[index + 1]] = [newStudents[index + 1], newStudents[index]];
+                }
+                setStudents(newStudents);
+            };
+
+            // データ保存・復元
+            const handleExportData = () => {
+                const dataToSave = {
+                    app: "cs-attendance",
+                    version: "1.0",
+                    date: new Date().toISOString(),
+                    classInfo,
+                    students,
+                    attendance,
+                    bonusMonths
+                };
+                const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `cs_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            const handleImportData = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (!confirm("現在のデータはすべて上書きされます。よろしいですか？")) {
+                    e.target.value = null; // リセット
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const data = JSON.parse(ev.target.result);
+                        if (data.app !== "cs-attendance") {
+                            alert("このアプリのバックアップファイルではありません。");
+                            return;
+                        }
+                        
+                        // データの適用
+                        if(data.classInfo) setClassInfo(data.classInfo);
+                        if(data.students) setStudents(data.students);
+                        if(data.attendance) setAttendance(data.attendance);
+                        if(data.bonusMonths) setBonusMonths(data.bonusMonths);
+                        
+                        alert("データを復元しました！");
+                        setIsDataModalOpen(false);
+                    } catch (err) {
+                        console.error(err);
+                        alert("ファイルの読み込みに失敗しました。データが破損している可能性があります。");
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = null;
+            };
+
+            const exportCSV = () => {
+                let csvContent = "data:text/csv;charset=utf-8,";
+                const dateHeaders = sundays.map(d => `${d.getMonth()+1}/${d.getDate()}`).join(",");
+                csvContent += `名前,学年,メモ,初期P,合計P,出席数,欠席数,${dateHeaders}\n`;
+
+                students.forEach(s => {
+                    const stats = calculateStats(s);
+                    const row = [
+                        s.name,
+                        s.grade ? `小${s.grade}` : "",
+                        s.memo,
+                        s.initialPoints,
+                        stats.totalPoints,
+                        stats.presentCount,
+                        stats.absentCount,
+                        ...sundays.map(d => {
+                            const key = `${s.id}_${formatDateKey(d)}`;
+                            const status = attendance[key];
+                            return status === 'present' ? '出席' : (status === 'absent' ? '欠席' : (status === 'late' ? '遅刻' : (status === 'holiday' ? 'CS休み' : '-')));
+                        })
+                    ];
+                    csvContent += row.join(",") + "\n";
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                const semesterName = classInfo.semester === 'first' ? '上半期' : '下半期';
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `出席簿_${classInfo.fiscalYear}_${semesterName}.csv`);
+                document.body.appendChild(link);
+                link.click();
+            };
+
+            const openPrintModal = () => {
+                setIsPrintModalOpen(true);
+            };
+
+            const executePrint = (targetSemester) => {
+                if (classInfo.semester !== targetSemester) {
+                    setClassInfo(prev => ({ ...prev, semester: targetSemester }));
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                } else {
+                    window.print();
+                }
+                setIsPrintModalOpen(false);
+            };
+
+            // 次の出席機会におけるボーナスポイント取得
+            const getNextBonusInfo = (studentId) => {
+                // ステータスがない(未入力の)最初の日曜日を探す
+                const nextSunday = sundays.find(d => {
+                    const key = `${studentId}_${formatDateKey(d)}`;
+                    return !attendance[key];
+                });
+
+                // 未入力日がなければ最後の日、あればその日の3倍設定を参照
+                const targetDate = nextSunday || sundays[sundays.length - 1];
+                const monthKey = `${targetDate.getFullYear()}-${targetDate.getMonth() + 1}`;
+                return bonusMonths[monthKey] ? 3 : 1;
+            };
+
+            const isGiftNear = (currentPoints, studentId) => {
+                const nextPoints = getNextBonusInfo(studentId);
+                
+                if (currentPoints > 0 && currentPoints % 10 === 0) {
+                    return false;
+                }
+
+                const remainder = currentPoints % 10;
+                if (remainder + nextPoints >= 10) {
+                    return true;
+                }
+                return false;
+            };
+
+            // スタイル
+            const getCellColor = (status) => {
+                switch(status) {
+                    case 'present': return 'bg-green-100 text-green-700 hover:bg-green-200 border-green-300';
+                    case 'absent': return 'bg-red-100 text-red-700 hover:bg-red-200 border-red-300';
+                    case 'late': return 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-yellow-300';
+                    case 'holiday': return 'bg-gray-200 text-gray-500 hover:bg-gray-300 border-gray-300';
+                    default: return 'bg-white hover:bg-gray-50 border-gray-200';
+                }
+            };
+
+            const getStatusIcon = (status) => {
+                switch(status) {
+                    case 'present': return 'CircleCheck';
+                    case 'absent': return 'X';
+                    case 'late': return 'Clock';
+                    case 'holiday': return 'MinusCircle';
+                    default: return '';
+                }
+            };
+
+            const isBirthdayNear = (studentBirthdayStr, sundayDate) => {
+                if (!studentBirthdayStr) return false;
+                const birthDate = new Date(studentBirthdayStr);
+                const sunday = new Date(sundayDate);
+                const weekStart = new Date(sunday);
+                const weekEnd = new Date(sunday);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                const checkYears = [sunday.getFullYear(), sunday.getFullYear() + 1];
+                for (let y of checkYears) {
+                    const bDayThisYear = new Date(y, birthDate.getMonth(), birthDate.getDate());
+                    if (bDayThisYear >= weekStart && bDayThisYear <= weekEnd) return true;
+                }
+                return false;
+            };
+
+            return (
+                <div className="flex flex-col h-full min-h-screen">
+                    {/* ヘッダー */}
+                    <header className="bg-white shadow-sm border-b border-amber-200 sticky top-0 z-30 no-print">
+                        <div className="max-w-full mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-100">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                                    <Icon name="Church" size={24} />
+                                </div>
+                                <h1 className="text-xl font-bold text-gray-800">教会学校 出席フォロー表</h1>
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                                <div className="flex items-center">
+                                    <input 
+                                        type="number" 
+                                        value={classInfo.fiscalYear}
+                                        onChange={(e) => setClassInfo({...classInfo, fiscalYear: e.target.value})}
+                                        className="w-20 p-1 text-center bg-white border border-gray-300 rounded-l-md focus:ring-amber-500 focus:border-amber-500"
+                                    />
+                                    <span className="bg-gray-100 border-y border-gray-300 px-2 py-1 text-sm font-medium">年度</span>
+                                </div>
+                                <div className="flex bg-white rounded-md border border-gray-300 overflow-hidden">
+                                    <button 
+                                        onClick={() => setClassInfo({...classInfo, semester: 'first'})}
+                                        className={`px-3 py-1 text-sm font-medium transition ${classInfo.semester === 'first' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
+                                    >
+                                        上半期(4-9月)
+                                    </button>
+                                    <div className="w-px bg-gray-300"></div>
+                                    <button 
+                                        onClick={() => setClassInfo({...classInfo, semester: 'second'})}
+                                        className={`px-3 py-1 text-sm font-medium transition ${classInfo.semester === 'second' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
+                                    >
+                                        下半期(10-3月)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setIsAddModalOpen(true)}
+                                    className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg font-medium transition shadow-sm text-sm"
+                                >
+                                    <Icon name="UserPlus" size={16} />
+                                    <span>生徒追加</span>
+                                </button>
+                                <button 
+                                    onClick={openPrintModal}
+                                    className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-medium transition shadow-sm text-sm"
+                                >
+                                    <Icon name="Printer" size={16} />
+                                    <span>B4印刷</span>
+                                </button>
+                                <button 
+                                    onClick={exportCSV}
+                                    className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium transition shadow-sm text-sm"
+                                    title="CSV出力"
+                                >
+                                    <Icon name="Download" size={16} />
+                                    <span>出力</span>
+                                </button>
+                                <div className="flex bg-white border border-gray-300 rounded-lg overflow-hidden">
+                                    <button 
+                                        onClick={() => setIsViewConfigModalOpen(true)}
+                                        className={`flex items-center gap-2 px-3 py-2 font-medium transition shadow-sm text-sm border-r border-gray-200 ${
+                                            viewConfig.sort !== 'manual' || viewConfig.filterGrades.length > 0 || viewConfig.filterBirthMonth !== 'all'
+                                            ? 'bg-amber-100 text-amber-700' 
+                                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                        title="リスト表示設定"
+                                    >
+                                        <Icon name="ListFilter" size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={() => setIsDataModalOpen(true)}
+                                        className="flex items-center gap-2 px-3 py-2 bg-white text-gray-700 hover:bg-gray-50 font-medium transition shadow-sm text-sm"
+                                        title="データ管理 (保存・復元)"
+                                    >
+                                        <Icon name="Database" size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* クラス情報入力 */}
+                        <div className="max-w-full mx-auto px-4 py-2 bg-amber-50/50 flex flex-wrap gap-4 items-center justify-center md:justify-start text-sm">
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-gray-600">学年:</span>
+                                {/* 学年複数選択コンポーネント */}
+                                <GradeSelector 
+                                    selectedGrades={classInfo.grade}
+                                    onChange={(newGrades) => setClassInfo({...classInfo, grade: newGrades})}
+                                />
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-gray-600">性別:</span>
+                                <label className="flex items-center gap-1 cursor-pointer">
+                                    <input type="radio" name="gender" value="male" checked={classInfo.gender === 'male'} onChange={(e) => setClassInfo({...classInfo, gender: e.target.value})} />
+                                    <span>男</span>
+                                </label>
+                                <label className="flex items-center gap-1 cursor-pointer">
+                                    <input type="radio" name="gender" value="female" checked={classInfo.gender === 'female'} onChange={(e) => setClassInfo({...classInfo, gender: e.target.value})} />
+                                    <span>女</span>
+                                </label>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-grow md:flex-grow-0 md:w-64">
+                                <span className="font-bold text-gray-600 whitespace-nowrap">担当者:</span>
+                                <input 
+                                    type="text" 
+                                    value={classInfo.teacher}
+                                    onChange={(e) => setClassInfo({...classInfo, teacher: e.target.value})}
+                                    placeholder="名前を入力"
+                                    className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-amber-500 focus:border-amber-500 bg-white"
+                                />
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* メインテーブル */}
+                    <main className="flex-grow overflow-hidden relative">
+                        <div className="absolute inset-0 overflow-auto">
+                            <div className="min-w-max p-4">
+                                <div className="bg-white rounded-xl shadow border border-gray-200 print-border">
+                                    <table className="border-collapse text-left">
+                                        <thead>
+                                            {/* ヘッダー1行目：月表示と3倍チェック */}
+                                            <tr className="bg-gray-100 text-gray-700 text-sm border-b border-gray-200">
+                                                <th colSpan="3" className="p-2 border-r sticky left-0 z-20 bg-gray-100 print:static"></th>
+                                                {sundaysByMonth.map(group => (
+                                                    <th key={group.key} colSpan={group.dates.length} className="p-2 border-r text-center border-gray-300">
+                                                        <div className="flex flex-col items-center justify-center gap-1">
+                                                            <span className="font-bold text-lg">{group.month}月</span>
+                                                            <label className={`no-print flex items-center gap-1 text-xs px-2 py-0.5 rounded cursor-pointer select-none transition ${bonusMonths[group.key] ? 'bg-yellow-100 text-yellow-700 font-bold ring-1 ring-yellow-400' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    checked={!!bonusMonths[group.key]}
+                                                                    onChange={() => toggleBonusMonth(group.key)}
+                                                                    className="hidden"
+                                                                />
+                                                                <span className="text-[10px]">{bonusMonths[group.key] ? '★3倍月間' : '3倍月間'}</span>
+                                                            </label>
+                                                            {/* 印刷用表示 */}
+                                                            {bonusMonths[group.key] && <span className="hidden print:inline text-xs font-bold border border-black px-1">3倍月間</span>}
+                                                        </div>
+                                                    </th>
+                                                ))}
+                                                <th colSpan="2" className="border-l"></th>
+                                            </tr>
+
+                                            {/* ヘッダー2行目：日付 */}
+                                            <tr className="bg-gray-50 text-gray-600 text-sm border-b border-gray-200">
+                                                <th className="p-3 w-16 sticky left-0 bg-gray-50 z-20 text-center font-medium border-r print:static">
+                                                    <span className="no-print">順序</span>
+                                                    <span className="hidden print:inline">No.</span>
+                                                </th>
+                                                <th className="p-3 w-40 min-w-[160px] sticky left-16 bg-gray-50 z-20 font-medium shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r print:static print:shadow-none">名前 / 初期P</th>
+                                                <th className="p-3 w-20 min-w-[80px] text-center font-medium border-r text-xs">
+                                                    合計P<br/>
+                                                    <span className="text-[10px] text-gray-400 font-normal">累計(出/欠)</span>
+                                                </th>
+                                                
+                                                {sundaysByMonth.map(group => (
+                                                    group.dates.map((date, i) => {
+                                                        const isMonthStart = i === 0;
+                                                        const borderClass = isMonthStart ? "border-l-2 border-l-gray-300" : "border-l border-gray-100";
+                                                        const isBonus = bonusMonths[group.key];
+                                                        
+                                                        return (
+                                                            <th key={date.toISOString()} className={`p-1 min-w-[36px] text-center font-medium ${borderClass} ${isBonus ? 'bg-yellow-50/50' : ''}`}>
+                                                                <span className={`text-sm font-bold ${isBirthdayNear ? 'text-gray-700' : 'text-amber-600'}`}>
+                                                                    {date.getDate()}
+                                                                </span>
+                                                            </th>
+                                                        );
+                                                    })
+                                                ))}
+                                                <th className="p-3 min-w-[150px] font-medium text-gray-400 border-l">メモ</th>
+                                                <th className="p-3 w-10 text-center no-print"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {students.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={sundays.length + 5} className="p-12 text-center text-gray-400">
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <Icon name="Users" size={48} className="text-gray-300" />
+                                                            <p>生徒登録ボタンからメンバーを追加してください。</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                processedStudents.map((student, idx) => {
+                                                    // Note: We use idx for display order only here. moveStudent needs original index if not filtered/sorted.
+                                                    const stats = student.stats; // Pre-calculated
+                                                    const nearGift = isGiftNear(stats.totalPoints, student.id);
+                                                    
+                                                    // Find original index for moveStudent
+                                                    const originalIndex = students.findIndex(s => s.id === student.id);
+
+                                                    return (
+                                                        <tr key={student.id} className="hover:bg-gray-50 transition group">
+                                                            <td className="p-1 text-center text-gray-400 sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r print:static">
+                                                                <div className="flex flex-col items-center justify-center h-full gap-1 no-print">
+                                                                    {viewConfig.sort === 'manual' && viewConfig.filterGrades.length === 0 && viewConfig.filterBirthMonth === 'all' ? (
+                                                                        <>
+                                                                            <button onClick={() => moveStudent(originalIndex, 'up')} disabled={originalIndex === 0} className="hover:text-amber-500 disabled:opacity-30"><Icon name="ArrowUp" size={14} /></button>
+                                                                            <span className="text-xs font-mono">{idx + 1}</span>
+                                                                            <button onClick={() => moveStudent(originalIndex, 'down')} disabled={originalIndex === students.length - 1} className="hover:text-amber-500 disabled:opacity-30"><Icon name="ArrowDown" size={14} /></button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="text-xs font-mono text-gray-300">{idx + 1}</span>
+                                                                    )}
+                                                                </div>
+                                                                <span className="hidden print:block">{idx + 1}</span>
+                                                            </td>
+                                                            <td className="p-3 sticky left-16 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r print:static print:shadow-none">
+                                                                <div>
+                                                                    <div 
+                                                                        className="font-bold text-gray-800 flex items-center gap-2 cursor-pointer hover:text-amber-600 transition"
+                                                                        onClick={() => openEditModal(student)}
+                                                                        title="クリックして編集"
+                                                                    >
+                                                                        {student.name}
+                                                                        <Icon name="Edit" size={12} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                        {student.grade && (
+                                                                             <span className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">小{student.grade}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        
+                                                                        {student.birthday && (
+                                                                            <div className="text-[10px] text-gray-400 flex items-center gap-0.5 no-print">
+                                                                                <Icon name="Calendar" size={10} />
+                                                                                {student.birthday.substring(5).replace('-', '/')}
+                                                                            </div>
+                                                                        )}
+                                                                        {/* 初期ポイント入力 (印刷時は非表示) */}
+                                                                        <div className="flex items-center gap-1 text-[10px] text-gray-500 bg-gray-100 px-1 rounded ml-auto no-print">
+                                                                            <span>初期:</span>
+                                                                            <input 
+                                                                                type="number" 
+                                                                                value={student.initialPoints} 
+                                                                                onChange={(e) => updateStudentInitialPoints(student.id, e.target.value)}
+                                                                                className="w-8 bg-transparent text-right border-b border-gray-300 focus:border-amber-400 outline-none"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                    {/* 印刷用: 初期P表示 */}
+                                                                    <div className="hidden print:block text-[10px] text-gray-500 mt-1">
+                                                                        初期P: {student.initialPoints}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            {/* 合計ポイントセル */}
+                                                            <td className="p-2 text-center border-r bg-amber-50 group-hover:bg-amber-100 transition-colors relative">
+                                                                <div className="font-bold text-lg text-amber-700">{stats.totalPoints}</div>
+                                                                <div className="text-[10px] text-gray-400">
+                                                                    ({stats.presentCount}/{stats.absentCount})
+                                                                </div>
+                                                                {/* プレゼントお知らせ */}
+                                                                {nearGift && (
+                                                                    <div className="absolute -top-2 -right-2 z-20 no-print animate-bounce-slow" title="次回プレゼントチャンス！">
+                                                                        <div className="bg-red-500 text-white text-[10px] px-1 py-0.5 rounded-full shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap">
+                                                                            <Icon name="Gift" size={10} />
+                                                                            <span>次GET!</span>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+
+                                                            {sundaysByMonth.map(group => (
+                                                                group.dates.map((date, i) => {
+                                                                    const dateKey = formatDateKey(date);
+                                                                    const key = `${student.id}_${dateKey}`;
+                                                                    const status = attendance[key];
+                                                                    const isBirthWeek = isBirthdayNear(student.birthday, date);
+                                                                    const isMonthStart = i === 0;
+                                                                    const borderClass = isMonthStart ? "border-l-2 border-l-gray-300" : "border-l border-gray-100";
+                                                                    const isBonus = bonusMonths[group.key];
+
+                                                                    return (
+                                                                        <td key={dateKey} className={`p-1 relative ${borderClass} ${isBonus ? 'bg-yellow-50/30' : ''}`}>
+                                                                            {isBirthWeek && (
+                                                                                <div className="absolute -top-1 -right-1 z-10 animate-bounce no-print" title="もうすぐ誕生日！">
+                                                                                    <span className="text-lg drop-shadow-sm filter">🎂</span>
+                                                                                </div>
+                                                                            )}
+                                                                            <button 
+                                                                                onClick={() => toggleAttendance(student.id, dateKey)}
+                                                                                className={`w-full h-10 min-w-[36px] rounded-md flex items-center justify-center transition-all duration-200 border ${getCellColor(status)} print:border-black print:h-8`}
+                                                                            >
+                                                                                {status && <Icon name={getStatusIcon(status)} size={16} />}
+                                                                            </button>
+                                                                        </td>
+                                                                    );
+                                                                })
+                                                            ))}
+                                                            
+                                                            <td className="p-2 border-l">
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={student.memo}
+                                                                    onChange={(e) => setStudents(students.map(s => s.id === student.id ? { ...s, memo: e.target.value } : s))}
+                                                                    placeholder="..."
+                                                                    className="w-full bg-transparent border-b border-transparent focus:border-amber-400 focus:outline-none text-xs py-1 print:border-none"
+                                                                />
+                                                            </td>
+                                                            <td className="p-2 text-center no-print">
+                                                                <button 
+                                                                    onClick={() => { setStudentToDelete(student); setIsDeleteModalOpen(true); }}
+                                                                    className="text-gray-300 hover:text-red-500 transition p-2"
+                                                                    title="削除"
+                                                                >
+                                                                    <Icon name="Trash2" size={16} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                    
+                    {/* フッター */}
+                    <footer className="bg-white border-t border-gray-200 p-4 z-20 no-print">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="flex flex-wrap gap-4 text-xs text-gray-600 justify-center">
+                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span> 出席 (+1P)</div>
+                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span> 遅刻 (0P)</div>
+                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span> 欠席</div>
+                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-200 border border-gray-300"></span> CS休み</div>
+                                <div className="flex items-center gap-1.5"><span className="font-bold text-amber-600 bg-yellow-100 px-1 rounded">★3倍</span> 月間は+3P</div>
+                            </div>
+                            <div className="text-gray-400 text-sm font-medium">
+                                東広島めぐみ教会 CS出席管理
+                            </div>
+                        </div>
+                    </footer>
+                    {/* 印刷用フッター */}
+                    <footer className="hidden print:block text-right text-xs mt-2 text-gray-500">
+                         東広島めぐみ教会 CS出席管理
+                    </footer>
+
+                    {/* モーダル類 (表示設定) */}
+                    {isViewConfigModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Icon name="ListFilter" className="text-amber-500" />
+                                    リスト表示設定
+                                </h3>
+                                
+                                <div className="mb-6">
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">並び替え (ソート)</label>
+                                    <div className="space-y-2">
+                                        {[
+                                            { val: 'manual', label: '標準 (登録順)' },
+                                            { val: 'grade', label: '学年順' },
+                                            { val: 'points_desc', label: '合計ポイント順 (多い順)' },
+                                            { val: 'birthday', label: '誕生日順 (1月〜12月)' }
+                                        ].map(opt => (
+                                            <label key={opt.val} className="flex items-center p-2 rounded hover:bg-gray-50 cursor-pointer">
+                                                <input 
+                                                    type="radio" 
+                                                    name="sort" 
+                                                    value={opt.val}
+                                                    checked={viewConfig.sort === opt.val}
+                                                    onChange={(e) => setViewConfig({...viewConfig, sort: e.target.value})}
+                                                    className="mr-2 text-amber-500 focus:ring-amber-500"
+                                                />
+                                                <span className="text-sm">{opt.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1 pl-2">※「標準」以外では手動並び替えが無効になります</p>
+                                </div>
+
+                                <div className="mb-6">
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">絞り込み (フィルタ)</label>
+                                    
+                                    <div className="mb-3">
+                                        <div className="text-xs text-gray-500 mb-1">学年:</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['1','2','3','4','5','6'].map(g => (
+                                                <label key={g} className={`px-3 py-1 rounded text-xs border cursor-pointer select-none transition ${viewConfig.filterGrades.includes(g) ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-white border-gray-200 text-gray-600'}`}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="hidden"
+                                                        checked={viewConfig.filterGrades.includes(g)}
+                                                        onChange={() => {
+                                                            const newGrades = viewConfig.filterGrades.includes(g) 
+                                                                ? viewConfig.filterGrades.filter(val => val !== g)
+                                                                : [...viewConfig.filterGrades, g];
+                                                            setViewConfig({...viewConfig, filterGrades: newGrades});
+                                                        }}
+                                                    />
+                                                    小{g}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div className="text-xs text-gray-500 mb-1">誕生月:</div>
+                                        <select 
+                                            value={viewConfig.filterBirthMonth} 
+                                            onChange={(e) => setViewConfig({...viewConfig, filterBirthMonth: e.target.value})}
+                                            className="w-full border border-gray-300 rounded p-1 text-sm bg-white"
+                                        >
+                                            <option value="all">すべて表示</option>
+                                            {[...Array(12)].map((_, i) => (
+                                                <option key={i+1} value={i+1}>{i+1}月生まれ</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <button 
+                                        onClick={() => setIsViewConfigModalOpen(false)}
+                                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition shadow-sm text-sm"
+                                    >
+                                        閉じる
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* モーダル類 (データ管理) */}
+                    {isDataModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center justify-center gap-2">
+                                    <Icon name="Database" className="text-amber-500" />
+                                    データ管理 (保存・復元)
+                                </h3>
+                                
+                                <div className="flex flex-col gap-4">
+                                    <button 
+                                        onClick={handleExportData}
+                                        className="w-full py-4 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg shadow-sm transition flex flex-col items-center gap-2 group"
+                                    >
+                                        <Icon name="Save" size={24} className="text-amber-500 group-hover:scale-110 transition-transform" />
+                                        <div className="flex flex-col">
+                                            <span className="font-bold">ファイルに保存</span>
+                                            <span className="text-xs text-gray-400">現在のデータをダウンロード</span>
+                                        </div>
+                                    </button>
+
+                                    <div className="relative w-full">
+                                        <input 
+                                            type="file" 
+                                            accept=".json"
+                                            onChange={handleImportData}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        />
+                                        <div className="w-full py-4 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg shadow-sm transition flex flex-col items-center gap-2 group">
+                                            <Icon name="Upload" size={24} className="text-blue-500 group-hover:scale-110 transition-transform" />
+                                            <div className="flex flex-col">
+                                                <span className="font-bold">ファイルから復元</span>
+                                                <span className="text-xs text-gray-400">保存したデータを読み込み</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={() => setIsDataModalOpen(false)}
+                                    className="mt-6 text-gray-500 hover:text-gray-700 text-sm underline"
+                                >
+                                    閉じる
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* モーダル類 (印刷選択) */}
+                    {isPrintModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center justify-center gap-2">
+                                    <Icon name="Printer" /> 印刷する期間を選択
+                                </h3>
+                                <div className="flex flex-col gap-3">
+                                    <button 
+                                        onClick={() => executePrint('first')}
+                                        className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium shadow-sm transition flex items-center justify-center gap-2"
+                                    >
+                                        上半期 (4月〜9月) を印刷
+                                    </button>
+                                    <button 
+                                        onClick={() => executePrint('second')}
+                                        className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-sm transition flex items-center justify-center gap-2"
+                                    >
+                                        下半期 (10月〜3月) を印刷
+                                    </button>
+                                </div>
+                                <button 
+                                    onClick={() => setIsPrintModalOpen(false)}
+                                    className="mt-6 text-gray-500 hover:text-gray-700 text-sm underline"
+                                >
+                                    キャンセル
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* モーダル類 (生徒追加・編集 共通) */}
+                    {isAddModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+                                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Icon name="UserPlus" className="text-amber-500" />
+                                    {editingStudent ? "生徒情報を編集" : "生徒を登録"}
+                                </h2>
+                                <form onSubmit={handleSaveStudent}>
+                                    <div className="flex gap-4 mb-4">
+                                        <div className="flex-[2]">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">お名前 <span className="text-red-500">*</span></label>
+                                            <input 
+                                                type="text" 
+                                                value={newStudentName}
+                                                onChange={(e) => setNewStudentName(e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                                                placeholder="例: 山田 太郎"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">学年</label>
+                                            <select 
+                                                value={newStudentGrade}
+                                                onChange={(e) => setNewStudentGrade(e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white"
+                                            >
+                                                <option value="">選択</option>
+                                                <option value="1">小1</option>
+                                                <option value="2">小2</option>
+                                                <option value="3">小3</option>
+                                                <option value="4">小4</option>
+                                                <option value="5">小5</option>
+                                                <option value="6">小6</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4 mb-6">
+                                        <div className="flex-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">誕生日 (任意)</label>
+                                            <input 
+                                                type="date" 
+                                                value={newStudentBirthday}
+                                                onChange={(e) => setNewStudentBirthday(e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                                            />
+                                        </div>
+                                        <div className="w-24">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">初期P</label>
+                                            <input 
+                                                type="number" 
+                                                value={newStudentInitialPoints}
+                                                onChange={(e) => setNewStudentInitialPoints(e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-right"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end gap-3">
+                                        <button 
+                                            type="button"
+                                            onClick={closeModal}
+                                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition text-sm"
+                                        >
+                                            キャンセル
+                                        </button>
+                                        <button 
+                                            type="submit"
+                                            disabled={!newStudentName.trim()}
+                                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-lg font-medium transition shadow-sm text-sm"
+                                        >
+                                            {editingStudent ? "更新する" : "登録する"}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* モーダル類 (削除) */}
+                    {isDeleteModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
+                                <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Icon name="Trash2" size={24} />
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-2">削除しますか？</h3>
+                                <p className="text-sm text-gray-600 mb-6">
+                                    「{studentToDelete?.name}」さんのデータを削除します。<br/>
+                                    この操作は元に戻せません。
+                                </p>
+                                <div className="flex justify-center gap-3">
+                                    <button 
+                                        onClick={() => setIsDeleteModalOpen(false)}
+                                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition text-sm font-medium"
+                                    >
+                                        キャンセル
+                                    </button>
+                                    <button 
+                                        onClick={executeDeleteStudent}
+                                        className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition shadow-sm text-sm"
+                                    >
+                                        削除実行
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
