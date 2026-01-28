@@ -659,7 +659,7 @@
 
             return (
                 <div className="flex flex-col h-full min-h-screen">
-                    {/* ヘッダー */}
+                    {/* ヘッダー (画面用) */}
                     <header className="bg-white shadow-sm border-b border-amber-200 sticky top-0 z-30 no-print">
                         <div className="max-w-full mx-auto px-4 py-2 md:py-3 flex flex-col md:flex-row items-center justify-between gap-3 border-b border-gray-100">
                             <div className="flex items-center gap-2">
@@ -778,6 +778,36 @@
                         </div>
                     </header>
 
+                    {/* 印刷用ヘッダー (画面では非表示) */}
+                    <div className="hidden print:block p-4 border-b border-gray-300 mb-2">
+                        <div className="flex justify-between items-end mb-2">
+                            <h1 className="text-2xl font-bold text-gray-800">教会学校 出席フォロー表</h1>
+                            <div className="text-sm">
+                                {classInfo.fiscalYear}年度 {classInfo.semester === 'first' ? '上半期 (4月〜9月)' : '下半期 (10月〜3月)'}
+                            </div>
+                        </div>
+                        <div className="flex gap-6 text-sm border-t border-gray-200 pt-2">
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold">学年:</span>
+                                <span>
+                                    {classInfo.grade.length > 0 
+                                        ? classInfo.grade.map(g => '小'+g).join(', ') 
+                                        : '未設定'}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold">性別:</span>
+                                <span>
+                                    {classInfo.gender === 'male' ? '男' : (classInfo.gender === 'female' ? '女' : '-')}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold">担当者:</span>
+                                <span>{classInfo.teacher || ''}</span>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* メインテーブル */}
                     <main className="flex-grow overflow-hidden relative print-scale-wrapper">
                         <div className="absolute inset-0 overflow-auto">
@@ -821,7 +851,7 @@
                                                     <span className="text-[9px] md:text-[10px] text-gray-400 font-normal">累計</span>
                                                 </th>
                                                 <th className="p-2 md:p-3 w-12 md:w-16 min-w-[50px] md:min-w-[60px] text-center font-medium border-r text-[10px] md:text-xs">
-                                                    出席<br/>
+                                                    出席数<br/>
                                                     <span className="text-[9px] md:text-[10px] text-gray-400 font-normal">回数</span>
                                                 </th>
                                                 
@@ -857,7 +887,7 @@
                                             ) : (
                                                 processedStudents.map((student, idx) => {
                                                     // Note: We use idx for display order only here. moveStudent needs original index if not filtered/sorted.
-                                                    const stats = student.stats; // Pre-calculated
+                                                    const stats = calculateStats(student);
                                                     const nearGift = isGiftNear(stats.totalPoints, student.id);
                                                     const gainedPoints = stats.totalPoints - student.initialPoints;
                                                     
