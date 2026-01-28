@@ -18,15 +18,15 @@
     <style>
         /* カスタムスクロールバー */
         ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
         }
         ::-webkit-scrollbar-track {
             background: #f1f1f1; 
         }
         ::-webkit-scrollbar-thumb {
             background: #cbd5e1; 
-            border-radius: 4px;
+            border-radius: 3px;
         }
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8; 
@@ -35,24 +35,35 @@
         @media print {
             @page {
                 size: B4 landscape; /* B4 横向き */
-                margin: 10mm;
+                margin: 5mm; /* 余白を詰める */
             }
             body { 
-                font-size: 10pt; 
+                font-size: 9pt; 
                 background: white;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                width: 100%;
             }
             .no-print { display: none !important; }
             .print-border { border: 1px solid #000; }
             .overflow-x-auto { overflow-x: visible; }
+            
             /* 印刷時はスクロール領域を全展開 */
             .absolute.inset-0 { position: static; height: auto; }
             main { overflow: visible; }
-            table { width: 100%; }
+            
+            /* 印刷時に全体を縮小して3月まで収める */
+            .print-scale-wrapper {
+                transform: scale(0.85); /* 85%に縮小 */
+                transform-origin: top left;
+                width: 117%; /* 縮小した分、幅を広げて右端まで使う */
+            }
             
             /* 印刷時はドロップダウンの中身などを隠す */
             .dropdown-content { display: none; }
+            
+            /* テーブルの見た目調整 */
+            th, td { padding: 2px !important; }
         }
         
         @keyframes fadeIn {
@@ -72,7 +83,7 @@
         }
     </style>
 </head>
-<body class="bg-amber-50 text-slate-800 font-sans flex flex-col min-h-screen">
+<body class="bg-amber-50 text-slate-800 font-sans flex flex-col min-h-screen text-xs md:text-sm">
     <div id="root" class="flex-grow flex flex-col h-screen"></div>
 
     <script type="text/babel">
@@ -149,10 +160,10 @@
             return (
                 <div className="relative" ref={dropdownRef}>
                     <button 
-                        className="border border-gray-300 rounded px-2 py-1 bg-white flex items-center gap-2 min-w-[80px] justify-between text-sm"
+                        className="border border-gray-300 rounded px-2 py-1 bg-white flex items-center gap-2 min-w-[80px] justify-between text-xs md:text-sm"
                         onClick={() => setIsOpen(!isOpen)}
                     >
-                        <span className="truncate max-w-[120px]">{displayText}</span>
+                        <span className="truncate max-w-[100px] md:max-w-[120px]">{displayText}</span>
                         <Icon name="ChevronDown" size={14} className="text-gray-500" />
                     </button>
                     
@@ -324,7 +335,8 @@
                         totalPoints += pointsPerAttend;
                     }
                     if (status === 'late') {
-                        presentCount++;
+                        // 遅刻は出席回数に加えない(0)
+                        // ポイント加算もなし(0P)
                     }
                     if (status === 'absent') absentCount++;
                 });
@@ -649,89 +661,89 @@
                 <div className="flex flex-col h-full min-h-screen">
                     {/* ヘッダー */}
                     <header className="bg-white shadow-sm border-b border-amber-200 sticky top-0 z-30 no-print">
-                        <div className="max-w-full mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-100">
+                        <div className="max-w-full mx-auto px-4 py-2 md:py-3 flex flex-col md:flex-row items-center justify-between gap-3 border-b border-gray-100">
                             <div className="flex items-center gap-2">
-                                <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
-                                    <Icon name="Church" size={24} />
+                                <div className="p-1.5 md:p-2 bg-amber-100 rounded-lg text-amber-600">
+                                    <Icon name="Church" size={20} className="md:w-6 md:h-6" />
                                 </div>
-                                <h1 className="text-xl font-bold text-gray-800">教会学校 出席フォロー表</h1>
+                                <h1 className="text-lg md:text-xl font-bold text-gray-800">教会学校 出席フォロー表</h1>
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                            <div className="flex flex-wrap items-center justify-center gap-2 bg-gray-50 p-1 md:p-1.5 rounded-lg border border-gray-200">
                                 <div className="flex items-center">
                                     <input 
                                         type="number" 
                                         value={classInfo.fiscalYear}
                                         onChange={(e) => setClassInfo({...classInfo, fiscalYear: e.target.value})}
-                                        className="w-20 p-1 text-center bg-white border border-gray-300 rounded-l-md focus:ring-amber-500 focus:border-amber-500"
+                                        className="w-16 md:w-20 p-1 text-center bg-white border border-gray-300 rounded-l-md focus:ring-amber-500 focus:border-amber-500 text-xs md:text-sm"
                                     />
-                                    <span className="bg-gray-100 border-y border-gray-300 px-2 py-1 text-sm font-medium">年度</span>
+                                    <span className="bg-gray-100 border-y border-gray-300 px-1.5 md:px-2 py-1 text-xs md:text-sm font-medium">年度</span>
                                 </div>
                                 <div className="flex bg-white rounded-md border border-gray-300 overflow-hidden">
                                     <button 
                                         onClick={() => setClassInfo({...classInfo, semester: 'first'})}
-                                        className={`px-3 py-1 text-sm font-medium transition ${classInfo.semester === 'first' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
+                                        className={`px-2 py-1 md:px-3 text-xs md:text-sm font-medium transition ${classInfo.semester === 'first' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
                                     >
                                         上半期(4-9月)
                                     </button>
                                     <div className="w-px bg-gray-300"></div>
                                     <button 
                                         onClick={() => setClassInfo({...classInfo, semester: 'second'})}
-                                        className={`px-3 py-1 text-sm font-medium transition ${classInfo.semester === 'second' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
+                                        className={`px-2 py-1 md:px-3 text-xs md:text-sm font-medium transition ${classInfo.semester === 'second' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
                                     >
                                         下半期(10-3月)
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5 md:gap-2 no-print overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
                                 <button 
                                     onClick={() => setIsAddModalOpen(true)}
-                                    className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg font-medium transition shadow-sm text-sm"
+                                    className="flex-shrink-0 flex items-center gap-1 md:gap-2 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 md:px-3 md:py-2 rounded-lg font-medium transition shadow-sm text-xs md:text-sm"
                                 >
-                                    <Icon name="UserPlus" size={16} />
+                                    <Icon name="UserPlus" size={14} className="md:w-4 md:h-4" />
                                     <span>生徒追加</span>
                                 </button>
                                 <button 
                                     onClick={openPrintModal}
-                                    className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-medium transition shadow-sm text-sm"
+                                    className="flex-shrink-0 flex items-center gap-1 md:gap-2 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1.5 md:px-3 md:py-2 rounded-lg font-medium transition shadow-sm text-xs md:text-sm"
                                 >
-                                    <Icon name="Printer" size={16} />
-                                    <span>B4印刷</span>
+                                    <Icon name="Printer" size={14} className="md:w-4 md:h-4" />
+                                    <span>印刷</span>
                                 </button>
                                 <button 
                                     onClick={exportCSV}
-                                    className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium transition shadow-sm text-sm"
+                                    className="flex-shrink-0 flex items-center gap-1 md:gap-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-2 py-1.5 md:px-3 md:py-2 rounded-lg font-medium transition shadow-sm text-xs md:text-sm"
                                     title="CSV出力"
                                 >
-                                    <Icon name="Download" size={16} />
+                                    <Icon name="Download" size={14} className="md:w-4 md:h-4" />
                                     <span>出力</span>
                                 </button>
-                                <div className="flex bg-white border border-gray-300 rounded-lg overflow-hidden">
+                                <div className="flex-shrink-0 flex bg-white border border-gray-300 rounded-lg overflow-hidden">
                                     <button 
                                         onClick={() => setIsViewConfigModalOpen(true)}
-                                        className={`flex items-center gap-2 px-3 py-2 font-medium transition shadow-sm text-sm border-r border-gray-200 ${
+                                        className={`flex items-center gap-1 md:gap-2 px-2 py-1.5 md:px-3 md:py-2 font-medium transition shadow-sm text-xs md:text-sm border-r border-gray-200 ${
                                             viewConfig.sort !== 'manual' || viewConfig.filterGrades.length > 0 || viewConfig.filterBirthMonth !== 'all'
                                             ? 'bg-amber-100 text-amber-700' 
                                             : 'bg-white text-gray-700 hover:bg-gray-50'
                                         }`}
                                         title="リスト表示設定"
                                     >
-                                        <Icon name="ListFilter" size={16} />
+                                        <Icon name="ListFilter" size={14} className="md:w-4 md:h-4" />
                                     </button>
                                     <button 
                                         onClick={() => setIsDataModalOpen(true)}
-                                        className="flex items-center gap-2 px-3 py-2 bg-white text-gray-700 hover:bg-gray-50 font-medium transition shadow-sm text-sm"
+                                        className="flex items-center gap-1 md:gap-2 px-2 py-1.5 md:px-3 md:py-2 bg-white text-gray-700 hover:bg-gray-50 font-medium transition shadow-sm text-xs md:text-sm"
                                         title="データ管理 (保存・復元)"
                                     >
-                                        <Icon name="Database" size={16} />
+                                        <Icon name="Database" size={14} className="md:w-4 md:h-4" />
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         {/* クラス情報入力 */}
-                        <div className="max-w-full mx-auto px-4 py-2 bg-amber-50/50 flex flex-wrap gap-4 items-center justify-center md:justify-start text-sm">
+                        <div className="max-w-full mx-auto px-4 py-2 bg-amber-50/50 flex flex-wrap gap-2 md:gap-4 items-center justify-center md:justify-start text-xs md:text-sm">
                             <div className="flex items-center gap-2">
                                 <span className="font-bold text-gray-600">学年:</span>
                                 {/* 学年複数選択コンポーネント */}
@@ -753,7 +765,7 @@
                                 </label>
                             </div>
 
-                            <div className="flex items-center gap-2 flex-grow md:flex-grow-0 md:w-64">
+                            <div className="flex items-center gap-2 flex-grow md:flex-grow-0 w-full md:w-64">
                                 <span className="font-bold text-gray-600 whitespace-nowrap">担当者:</span>
                                 <input 
                                     type="text" 
@@ -767,27 +779,27 @@
                     </header>
 
                     {/* メインテーブル */}
-                    <main className="flex-grow overflow-hidden relative">
+                    <main className="flex-grow overflow-hidden relative print-scale-wrapper">
                         <div className="absolute inset-0 overflow-auto">
-                            <div className="min-w-max p-4">
+                            <div className="min-w-max p-2 md:p-4">
                                 <div className="bg-white rounded-xl shadow border border-gray-200 print-border">
-                                    <table className="border-collapse text-left">
+                                    <table className="border-collapse text-left w-full">
                                         <thead>
                                             {/* ヘッダー1行目：月表示と3倍チェック */}
-                                            <tr className="bg-gray-100 text-gray-700 text-sm border-b border-gray-200">
-                                                <th colSpan="3" className="p-2 border-r sticky left-0 z-20 bg-gray-100 print:static"></th>
+                                            <tr className="bg-gray-100 text-gray-700 text-xs md:text-sm border-b border-gray-200">
+                                                <th colSpan="4" className="p-1 md:p-2 border-r sticky left-0 z-20 bg-gray-100 print:static"></th>
                                                 {sundaysByMonth.map(group => (
-                                                    <th key={group.key} colSpan={group.dates.length} className="p-2 border-r text-center border-gray-300">
-                                                        <div className="flex flex-col items-center justify-center gap-1">
-                                                            <span className="font-bold text-lg">{group.month}月</span>
-                                                            <label className={`no-print flex items-center gap-1 text-xs px-2 py-0.5 rounded cursor-pointer select-none transition ${bonusMonths[group.key] ? 'bg-yellow-100 text-yellow-700 font-bold ring-1 ring-yellow-400' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
+                                                    <th key={group.key} colSpan={group.dates.length} className="p-1 md:p-2 border-r text-center border-gray-300">
+                                                        <div className="flex flex-col items-center justify-center gap-0.5 md:gap-1">
+                                                            <span className="font-bold text-base md:text-lg">{group.month}月</span>
+                                                            <label className={`no-print flex items-center gap-1 text-[10px] md:text-xs px-1.5 py-0.5 rounded cursor-pointer select-none transition ${bonusMonths[group.key] ? 'bg-yellow-100 text-yellow-700 font-bold ring-1 ring-yellow-400' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
                                                                 <input 
                                                                     type="checkbox" 
                                                                     checked={!!bonusMonths[group.key]}
                                                                     onChange={() => toggleBonusMonth(group.key)}
                                                                     className="hidden"
                                                                 />
-                                                                <span className="text-[10px]">{bonusMonths[group.key] ? '★3倍月間' : '3倍月間'}</span>
+                                                                <span className="whitespace-nowrap">{bonusMonths[group.key] ? '★3倍' : '3倍?'}</span>
                                                             </label>
                                                             {/* 印刷用表示 */}
                                                             {bonusMonths[group.key] && <span className="hidden print:inline text-xs font-bold border border-black px-1">3倍月間</span>}
@@ -798,15 +810,19 @@
                                             </tr>
 
                                             {/* ヘッダー2行目：日付 */}
-                                            <tr className="bg-gray-50 text-gray-600 text-sm border-b border-gray-200">
-                                                <th className="p-3 w-16 sticky left-0 bg-gray-50 z-20 text-center font-medium border-r print:static">
-                                                    <span className="no-print">順序</span>
+                                            <tr className="bg-gray-50 text-gray-600 text-xs md:text-sm border-b border-gray-200">
+                                                <th className="p-2 md:p-3 w-10 md:w-16 sticky left-0 bg-gray-50 z-20 text-center font-medium border-r print:static">
+                                                    <span className="no-print">順</span>
                                                     <span className="hidden print:inline">No.</span>
                                                 </th>
-                                                <th className="p-3 w-40 min-w-[160px] sticky left-16 bg-gray-50 z-20 font-medium shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r print:static print:shadow-none">名前 / 初期P</th>
-                                                <th className="p-3 w-20 min-w-[80px] text-center font-medium border-r text-xs">
+                                                <th className="p-2 md:p-3 w-28 md:w-40 min-w-[120px] md:min-w-[160px] sticky left-10 md:left-16 bg-gray-50 z-20 font-medium shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r print:static print:shadow-none">名前 / 初期P</th>
+                                                <th className="p-2 md:p-3 w-14 md:w-20 min-w-[60px] md:min-w-[70px] text-center font-medium border-r text-[10px] md:text-xs">
                                                     合計P<br/>
-                                                    <span className="text-[10px] text-gray-400 font-normal">累計(出/欠)</span>
+                                                    <span className="text-[9px] md:text-[10px] text-gray-400 font-normal">累計</span>
+                                                </th>
+                                                <th className="p-2 md:p-3 w-12 md:w-16 min-w-[50px] md:min-w-[60px] text-center font-medium border-r text-[10px] md:text-xs">
+                                                    出席<br/>
+                                                    <span className="text-[9px] md:text-[10px] text-gray-400 font-normal">回数</span>
                                                 </th>
                                                 
                                                 {sundaysByMonth.map(group => (
@@ -816,22 +832,22 @@
                                                         const isBonus = bonusMonths[group.key];
                                                         
                                                         return (
-                                                            <th key={date.toISOString()} className={`p-1 min-w-[36px] text-center font-medium ${borderClass} ${isBonus ? 'bg-yellow-50/50' : ''}`}>
-                                                                <span className={`text-sm font-bold ${isBirthdayNear ? 'text-gray-700' : 'text-amber-600'}`}>
+                                                            <th key={date.toISOString()} className={`p-1 min-w-[28px] md:min-w-[36px] text-center font-medium ${borderClass} ${isBonus ? 'bg-yellow-50/50' : ''}`}>
+                                                                <span className={`text-xs md:text-sm font-bold ${isBirthdayNear ? 'text-gray-700' : 'text-amber-600'}`}>
                                                                     {date.getDate()}
                                                                 </span>
                                                             </th>
                                                         );
                                                     })
                                                 ))}
-                                                <th className="p-3 min-w-[150px] font-medium text-gray-400 border-l">メモ</th>
-                                                <th className="p-3 w-10 text-center no-print"></th>
+                                                <th className="p-2 md:p-3 min-w-[100px] md:min-w-[150px] font-medium text-gray-400 border-l">メモ</th>
+                                                <th className="p-2 md:p-3 w-8 md:w-10 text-center no-print"></th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
                                             {students.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={sundays.length + 5} className="p-12 text-center text-gray-400">
+                                                    <td colSpan={sundays.length + 6} className="p-12 text-center text-gray-400">
                                                         <div className="flex flex-col items-center gap-2">
                                                             <Icon name="Users" size={48} className="text-gray-300" />
                                                             <p>生徒登録ボタンからメンバーを追加してください。</p>
@@ -843,6 +859,7 @@
                                                     // Note: We use idx for display order only here. moveStudent needs original index if not filtered/sorted.
                                                     const stats = student.stats; // Pre-calculated
                                                     const nearGift = isGiftNear(stats.totalPoints, student.id);
+                                                    const gainedPoints = stats.totalPoints - student.initialPoints;
                                                     
                                                     // Find original index for moveStudent
                                                     const originalIndex = students.findIndex(s => s.id === student.id);
@@ -853,9 +870,9 @@
                                                                 <div className="flex flex-col items-center justify-center h-full gap-1 no-print">
                                                                     {viewConfig.sort === 'manual' && viewConfig.filterGrades.length === 0 && viewConfig.filterBirthMonth === 'all' ? (
                                                                         <>
-                                                                            <button onClick={() => moveStudent(originalIndex, 'up')} disabled={originalIndex === 0} className="hover:text-amber-500 disabled:opacity-30"><Icon name="ArrowUp" size={14} /></button>
-                                                                            <span className="text-xs font-mono">{idx + 1}</span>
-                                                                            <button onClick={() => moveStudent(originalIndex, 'down')} disabled={originalIndex === students.length - 1} className="hover:text-amber-500 disabled:opacity-30"><Icon name="ArrowDown" size={14} /></button>
+                                                                            <button onClick={() => moveStudent(originalIndex, 'up')} disabled={originalIndex === 0} className="hover:text-amber-500 disabled:opacity-30"><Icon name="ArrowUp" size={14} className="w-3 h-3 md:w-4 md:h-4" /></button>
+                                                                            <span className="text-[10px] md:text-xs font-mono">{idx + 1}</span>
+                                                                            <button onClick={() => moveStudent(originalIndex, 'down')} disabled={originalIndex === students.length - 1} className="hover:text-amber-500 disabled:opacity-30"><Icon name="ArrowDown" size={14} className="w-3 h-3 md:w-4 md:h-4" /></button>
                                                                         </>
                                                                     ) : (
                                                                         <span className="text-xs font-mono text-gray-300">{idx + 1}</span>
@@ -863,35 +880,35 @@
                                                                 </div>
                                                                 <span className="hidden print:block">{idx + 1}</span>
                                                             </td>
-                                                            <td className="p-3 sticky left-16 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r print:static print:shadow-none">
+                                                            <td className="p-2 md:p-3 sticky left-10 md:left-16 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r print:static print:shadow-none">
                                                                 <div>
                                                                     <div 
-                                                                        className="font-bold text-gray-800 flex items-center gap-2 cursor-pointer hover:text-amber-600 transition"
+                                                                        className="font-bold text-gray-800 flex items-center gap-1 md:gap-2 cursor-pointer hover:text-amber-600 transition text-xs md:text-sm"
                                                                         onClick={() => openEditModal(student)}
                                                                         title="クリックして編集"
                                                                     >
-                                                                        {student.name}
-                                                                        <Icon name="Edit" size={12} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                        <span className="truncate max-w-[80px] md:max-w-none">{student.name}</span>
+                                                                        <Icon name="Edit" size={12} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                                                                         {student.grade && (
-                                                                             <span className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">小{student.grade}</span>
+                                                                             <span className="text-[10px] md:text-xs text-slate-500 bg-slate-100 px-1 py-0.5 md:px-1.5 rounded border border-slate-200 whitespace-nowrap">小{student.grade}</span>
                                                                         )}
                                                                     </div>
-                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                    <div className="flex items-center gap-1 md:gap-2 mt-1">
                                                                         
                                                                         {student.birthday && (
-                                                                            <div className="text-[10px] text-gray-400 flex items-center gap-0.5 no-print">
+                                                                            <div className="text-[9px] md:text-[10px] text-gray-400 flex items-center gap-0.5 no-print">
                                                                                 <Icon name="Calendar" size={10} />
                                                                                 {student.birthday.substring(5).replace('-', '/')}
                                                                             </div>
                                                                         )}
                                                                         {/* 初期ポイント入力 (印刷時は非表示) */}
-                                                                        <div className="flex items-center gap-1 text-[10px] text-gray-500 bg-gray-100 px-1 rounded ml-auto no-print">
+                                                                        <div className="flex items-center gap-1 text-[9px] md:text-[10px] text-gray-500 bg-gray-100 px-1 rounded ml-auto no-print">
                                                                             <span>初期:</span>
                                                                             <input 
                                                                                 type="number" 
                                                                                 value={student.initialPoints} 
                                                                                 onChange={(e) => updateStudentInitialPoints(student.id, e.target.value)}
-                                                                                className="w-8 bg-transparent text-right border-b border-gray-300 focus:border-amber-400 outline-none"
+                                                                                className="w-6 md:w-8 bg-transparent text-right border-b border-gray-300 focus:border-amber-400 outline-none"
                                                                             />
                                                                         </div>
                                                                     </div>
@@ -902,20 +919,24 @@
                                                                 </div>
                                                             </td>
                                                             {/* 合計ポイントセル */}
-                                                            <td className="p-2 text-center border-r bg-amber-50 group-hover:bg-amber-100 transition-colors relative">
-                                                                <div className="font-bold text-lg text-amber-700">{stats.totalPoints}</div>
-                                                                <div className="text-[10px] text-gray-400">
+                                                            <td className="p-1 md:p-2 text-center border-r bg-amber-50 group-hover:bg-amber-100 transition-colors relative">
+                                                                <div className="font-bold text-sm md:text-lg text-amber-700">{stats.totalPoints}</div>
+                                                                <div className="text-[9px] md:text-[10px] text-gray-400">
                                                                     ({stats.presentCount}/{stats.absentCount})
                                                                 </div>
                                                                 {/* プレゼントお知らせ */}
                                                                 {nearGift && (
-                                                                    <div className="absolute -top-2 -right-2 z-20 no-print animate-bounce-slow" title="次回プレゼントチャンス！">
-                                                                        <div className="bg-red-500 text-white text-[10px] px-1 py-0.5 rounded-full shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap">
+                                                                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 z-20 no-print animate-bounce-slow" title="次回プレゼントチャンス！">
+                                                                        <div className="bg-red-500 text-white text-[9px] md:text-[10px] px-1 py-0.5 rounded-full shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap">
                                                                             <Icon name="Gift" size={10} />
                                                                             <span>次GET!</span>
                                                                         </div>
                                                                     </div>
                                                                 )}
+                                                            </td>
+                                                            {/* 出席数 セル */}
+                                                            <td className="p-1 md:p-2 text-center border-r bg-white font-medium text-gray-700 text-xs md:text-sm">
+                                                                {stats.presentCount}
                                                             </td>
 
                                                             {sundaysByMonth.map(group => (
@@ -932,36 +953,36 @@
                                                                         <td key={dateKey} className={`p-1 relative ${borderClass} ${isBonus ? 'bg-yellow-50/30' : ''}`}>
                                                                             {isBirthWeek && (
                                                                                 <div className="absolute -top-1 -right-1 z-10 animate-bounce no-print" title="もうすぐ誕生日！">
-                                                                                    <span className="text-lg drop-shadow-sm filter">🎂</span>
+                                                                                    <span className="text-base md:text-lg drop-shadow-sm filter">🎂</span>
                                                                                 </div>
                                                                             )}
                                                                             <button 
                                                                                 onClick={() => toggleAttendance(student.id, dateKey)}
-                                                                                className={`w-full h-10 min-w-[36px] rounded-md flex items-center justify-center transition-all duration-200 border ${getCellColor(status)} print:border-black print:h-8`}
+                                                                                className={`w-full h-8 md:h-10 min-w-[28px] md:min-w-[36px] rounded-md flex items-center justify-center transition-all duration-200 border ${getCellColor(status)} print:border-black print:h-8`}
                                                                             >
-                                                                                {status && <Icon name={getStatusIcon(status)} size={16} />}
+                                                                                {status && <Icon name={getStatusIcon(status)} size={14} className="md:w-4 md:h-4" />}
                                                                             </button>
                                                                         </td>
                                                                     );
                                                                 })
                                                             ))}
                                                             
-                                                            <td className="p-2 border-l">
+                                                            <td className="p-1 md:p-2 border-l">
                                                                 <input 
                                                                     type="text" 
                                                                     value={student.memo}
                                                                     onChange={(e) => setStudents(students.map(s => s.id === student.id ? { ...s, memo: e.target.value } : s))}
                                                                     placeholder="..."
-                                                                    className="w-full bg-transparent border-b border-transparent focus:border-amber-400 focus:outline-none text-xs py-1 print:border-none"
+                                                                    className="w-full bg-transparent border-b border-transparent focus:border-amber-400 focus:outline-none text-[10px] md:text-xs py-1 print:border-none"
                                                                 />
                                                             </td>
-                                                            <td className="p-2 text-center no-print">
+                                                            <td className="p-1 md:p-2 text-center no-print">
                                                                 <button 
                                                                     onClick={() => { setStudentToDelete(student); setIsDeleteModalOpen(true); }}
-                                                                    className="text-gray-300 hover:text-red-500 transition p-2"
+                                                                    className="text-gray-300 hover:text-red-500 transition p-1 md:p-2"
                                                                     title="削除"
                                                                 >
-                                                                    <Icon name="Trash2" size={16} />
+                                                                    <Icon name="Trash2" size={14} className="md:w-4 md:h-4" />
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -976,16 +997,16 @@
                     </main>
                     
                     {/* フッター */}
-                    <footer className="bg-white border-t border-gray-200 p-4 z-20 no-print">
-                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-                            <div className="flex flex-wrap gap-4 text-xs text-gray-600 justify-center">
-                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span> 出席 (+1P)</div>
-                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span> 遅刻 (0P)</div>
-                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span> 欠席</div>
-                                <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-200 border border-gray-300"></span> CS休み</div>
-                                <div className="flex items-center gap-1.5"><span className="font-bold text-amber-600 bg-yellow-100 px-1 rounded">★3倍</span> 月間は+3P</div>
+                    <footer className="bg-white border-t border-gray-200 p-2 md:p-4 z-20 no-print">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
+                            <div className="flex flex-wrap gap-2 md:gap-4 text-[10px] md:text-xs text-gray-600 justify-center">
+                                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-green-100 border border-green-300"></span> 出席 (+1P)</div>
+                                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-yellow-100 border border-yellow-300"></span> 遅刻 (0P)</div>
+                                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-red-100 border border-red-300"></span> 欠席</div>
+                                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-gray-200 border border-gray-300"></span> CS休み</div>
+                                <div className="flex items-center gap-1"><span className="font-bold text-amber-600 bg-yellow-100 px-1 rounded">★3倍</span> 月間は+3P</div>
                             </div>
-                            <div className="text-gray-400 text-sm font-medium">
+                            <div className="text-gray-400 text-xs font-medium">
                                 東広島めぐみ教会 CS出席管理
                             </div>
                         </div>
@@ -994,6 +1015,116 @@
                     <footer className="hidden print:block text-right text-xs mt-2 text-gray-500">
                          東広島めぐみ教会 CS出席管理
                     </footer>
+
+                    {/* モーダル類 (印刷選択) */}
+                    {isPrintModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center justify-center gap-2">
+                                    <Icon name="Printer" /> 印刷する期間を選択
+                                </h3>
+                                <div className="flex flex-col gap-3">
+                                    <button 
+                                        onClick={() => executePrint('first')}
+                                        className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium shadow-sm transition flex items-center justify-center gap-2"
+                                    >
+                                        上半期 (4月〜9月) を印刷
+                                    </button>
+                                    <button 
+                                        onClick={() => executePrint('second')}
+                                        className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-sm transition flex items-center justify-center gap-2"
+                                    >
+                                        下半期 (10月〜3月) を印刷
+                                    </button>
+                                </div>
+                                <button 
+                                    onClick={() => setIsPrintModalOpen(false)}
+                                    className="mt-6 text-gray-500 hover:text-gray-700 text-sm underline"
+                                >
+                                    キャンセル
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* モーダル類 (生徒追加・編集 共通) */}
+                    {isAddModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+                                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Icon name="UserPlus" className="text-amber-500" />
+                                    {editingStudent ? "生徒情報を編集" : "生徒を登録"}
+                                </h2>
+                                <form onSubmit={handleSaveStudent}>
+                                    <div className="flex gap-4 mb-4">
+                                        <div className="flex-[2]">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">お名前 <span className="text-red-500">*</span></label>
+                                            <input 
+                                                type="text" 
+                                                value={newStudentName}
+                                                onChange={(e) => setNewStudentName(e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                                                placeholder="例: 山田 太郎"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">学年</label>
+                                            <select 
+                                                value={newStudentGrade}
+                                                onChange={(e) => setNewStudentGrade(e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white"
+                                            >
+                                                <option value="">選択</option>
+                                                <option value="1">小1</option>
+                                                <option value="2">小2</option>
+                                                <option value="3">小3</option>
+                                                <option value="4">小4</option>
+                                                <option value="5">小5</option>
+                                                <option value="6">小6</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4 mb-6">
+                                        <div className="flex-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">誕生日 (任意)</label>
+                                            <input 
+                                                type="date" 
+                                                value={newStudentBirthday}
+                                                onChange={(e) => setNewStudentBirthday(e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                                            />
+                                        </div>
+                                        <div className="w-24">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">初期P</label>
+                                            <input 
+                                                type="number" 
+                                                value={newStudentInitialPoints}
+                                                onChange={(e) => setNewStudentInitialPoints(e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-right"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end gap-3">
+                                        <button 
+                                            type="button"
+                                            onClick={closeModal}
+                                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition text-sm"
+                                        >
+                                            キャンセル
+                                        </button>
+                                        <button 
+                                            type="submit"
+                                            disabled={!newStudentName.trim()}
+                                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-lg font-medium transition shadow-sm text-sm"
+                                        >
+                                            {editingStudent ? "更新する" : "登録する"}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
 
                     {/* モーダル類 (表示設定) */}
                     {isViewConfigModalOpen && (
@@ -1125,116 +1256,6 @@
                                 >
                                     閉じる
                                 </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* モーダル類 (印刷選択) */}
-                    {isPrintModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
-                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center justify-center gap-2">
-                                    <Icon name="Printer" /> 印刷する期間を選択
-                                </h3>
-                                <div className="flex flex-col gap-3">
-                                    <button 
-                                        onClick={() => executePrint('first')}
-                                        className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium shadow-sm transition flex items-center justify-center gap-2"
-                                    >
-                                        上半期 (4月〜9月) を印刷
-                                    </button>
-                                    <button 
-                                        onClick={() => executePrint('second')}
-                                        className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-sm transition flex items-center justify-center gap-2"
-                                    >
-                                        下半期 (10月〜3月) を印刷
-                                    </button>
-                                </div>
-                                <button 
-                                    onClick={() => setIsPrintModalOpen(false)}
-                                    className="mt-6 text-gray-500 hover:text-gray-700 text-sm underline"
-                                >
-                                    キャンセル
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* モーダル類 (生徒追加・編集 共通) */}
-                    {isAddModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
-                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
-                                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <Icon name="UserPlus" className="text-amber-500" />
-                                    {editingStudent ? "生徒情報を編集" : "生徒を登録"}
-                                </h2>
-                                <form onSubmit={handleSaveStudent}>
-                                    <div className="flex gap-4 mb-4">
-                                        <div className="flex-[2]">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">お名前 <span className="text-red-500">*</span></label>
-                                            <input 
-                                                type="text" 
-                                                value={newStudentName}
-                                                onChange={(e) => setNewStudentName(e.target.value)}
-                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-                                                placeholder="例: 山田 太郎"
-                                                autoFocus
-                                            />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">学年</label>
-                                            <select 
-                                                value={newStudentGrade}
-                                                onChange={(e) => setNewStudentGrade(e.target.value)}
-                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white"
-                                            >
-                                                <option value="">選択</option>
-                                                <option value="1">小1</option>
-                                                <option value="2">小2</option>
-                                                <option value="3">小3</option>
-                                                <option value="4">小4</option>
-                                                <option value="5">小5</option>
-                                                <option value="6">小6</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4 mb-6">
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">誕生日 (任意)</label>
-                                            <input 
-                                                type="date" 
-                                                value={newStudentBirthday}
-                                                onChange={(e) => setNewStudentBirthday(e.target.value)}
-                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-                                            />
-                                        </div>
-                                        <div className="w-24">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">初期P</label>
-                                            <input 
-                                                type="number" 
-                                                value={newStudentInitialPoints}
-                                                onChange={(e) => setNewStudentInitialPoints(e.target.value)}
-                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-right"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-3">
-                                        <button 
-                                            type="button"
-                                            onClick={closeModal}
-                                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition text-sm"
-                                        >
-                                            キャンセル
-                                        </button>
-                                        <button 
-                                            type="submit"
-                                            disabled={!newStudentName.trim()}
-                                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-lg font-medium transition shadow-sm text-sm"
-                                        >
-                                            {editingStudent ? "更新する" : "登録する"}
-                                        </button>
-                                    </div>
-                                </form>
                             </div>
                         </div>
                     )}
