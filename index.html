@@ -127,7 +127,7 @@
         const ICONS = {
             Church: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9h4"/><path d="M12 7v5"/><path d="M4 22h16a2 2 0 0 0 2-2V10L12 2 2 10v10a2 2 0 0 0 2 2z"/></svg>),
             UserPlus: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" x2="20" y1="8" y2="14"/><line x1="23" x2="17" y1="11" y2="11"/></svg>),
-            Download: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>),
+            Download: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a4 4 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>),
             Printer: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>),
             Users: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>),
             CircleCheck: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>),
@@ -323,11 +323,25 @@
                 if ((!classInfo.grade || classInfo.grade.length === 0) && typeof classInfo.teacher === 'string' && classInfo.teacher.trim() !== "") {
                     const searchText = classInfo.teacher.trim().toLowerCase();
                     const gTeachers = classInfo.gradeTeachers || {};
-                    const matchedGrades = Object.keys(gTeachers)
+                    
+                    // 【改善】検索文字列が一致する担当者の「学年」と「性別」の条件を抽出する
+                    const matchedConditions = Object.keys(gTeachers)
                         .filter(k => k.startsWith(`${classInfo.fiscalYear}_`))
                         .filter(k => typeof gTeachers[k] === 'string' && gTeachers[k].toLowerCase().includes(searchText))
-                        .map(k => k.split('_')[1]);
-                    list = list.filter(s => matchedGrades.includes(s.grade));
+                        .map(k => {
+                            const parts = k.split('_');
+                            // parts[1] は学年、parts[2] は性別 (無ければ 'all')
+                            return { grade: parts[1], gender: parts[2] || 'all' };
+                        });
+                        
+                    // 抽出した条件 (学年＆性別) のいずれかに合致する生徒だけを残す
+                    list = list.filter(s => {
+                        return matchedConditions.some(cond => {
+                            if (cond.grade !== s.grade) return false;
+                            if (cond.gender !== 'all' && cond.gender !== s.gender) return false;
+                            return true;
+                        });
+                    });
                 }
 
                 if (viewConfig.filterBirthMonth !== 'all') {
@@ -351,11 +365,19 @@
                 const newInfo = { ...classInfo, [key]: value };
                 const currentYear = newInfo.fiscalYear;
                 
-                if (key === 'grade' || key === 'fiscalYear') {
+                // 【改善】学年だけでなく「性別」が切り替わった時も、該当する担当者を読み込み直す
+                if (key === 'grade' || key === 'fiscalYear' || key === 'gender') {
                     const selectedGrades = newInfo.grade || [];
+                    const currentGender = newInfo.gender || 'all'; // 現在選択中の性別 (未選択なら 'all')
+                    
                     if (selectedGrades.length > 0) {
                         const gTeachers = newInfo.gradeTeachers || {};
-                        const teachers = selectedGrades.map(g => gTeachers[`${currentYear}_${g}`]).filter(Boolean);
+                        const teachers = selectedGrades.map(g => {
+                            // 新しいフォーマット (年度_学年_性別) を優先、なければ古いフォーマット (年度_学年) を取得
+                            const newKey = `${currentYear}_${g}_${currentGender}`;
+                            const oldKey = `${currentYear}_${g}`;
+                            return gTeachers[newKey] !== undefined ? gTeachers[newKey] : gTeachers[oldKey];
+                        }).filter(Boolean);
                         const uniqueTeachers = [...new Set(teachers)];
                         newInfo.teacher = uniqueTeachers.join(", ");
                     } else {
@@ -363,11 +385,14 @@
                     }
                 }
                 
+                // 担当者を保存する処理
                 if (key === 'teacher') {
+                    const currentGender = newInfo.gender || 'all'; // 現在選択中の性別
                     if (newInfo.grade && newInfo.grade.length > 0) {
                         const newGradeTeachers = { ...(newInfo.gradeTeachers || {}) };
                         newInfo.grade.forEach(g => {
-                            newGradeTeachers[`${currentYear}_${g}`] = value;
+                            // 【改善】保存時のキーに性別も含める (例: "2024_5_male")
+                            newGradeTeachers[`${currentYear}_${g}_${currentGender}`] = value;
                         });
                         newInfo.gradeTeachers = newGradeTeachers;
                     }
@@ -467,7 +492,7 @@
 
             return (
                 <div className="flex flex-col h-full min-h-screen">
-                    <header className="bg-white shadow-sm border-b border-amber-200 sticky top-0 z-[60] no-print">
+                    <header className="bg-white shadow-sm border-b border-amber-200 sticky top-0 z-[60] print:static">
                         <div className="max-w-full mx-auto px-4 py-2 md:py-3 flex flex-col md:flex-row items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <div className="p-1.5 md:p-2 bg-amber-100 rounded-lg text-amber-600"><Icon name="Church" /></div>
@@ -480,7 +505,7 @@
                                     <button onClick={() => handleClassInfoChange('semester', 'second')} className={`px-2 py-1 md:px-3 text-xs md:text-sm ${classInfo.semester === 'second' ? 'bg-amber-100 text-amber-700 font-bold' : ''}`}>下半期</button>
                                 </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 no-print">
                                 <button onClick={openAddModal} className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="UserPlus" size={14} /><span>生徒追加</span></button>
                                 <button onClick={() => setIsPrintModalOpen(true)} className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="Printer" size={14} /><span>印刷</span></button>
                                 <button onClick={exportCSV} className="flex items-center gap-1 bg-white border border-gray-300 px-2 py-1.5 rounded-lg text-gray-700 text-xs md:text-sm"><Icon name="Download" size={14} /><span>出力</span></button>
