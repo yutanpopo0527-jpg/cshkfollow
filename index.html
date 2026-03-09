@@ -242,6 +242,7 @@
                         const data = doc.data();
                         if (typeof data.grade === 'string') data.grade = data.grade ? [data.grade] : [];
                         if (!data.gradeTeachers) data.gradeTeachers = {};
+                        if (typeof data.teacher !== 'string') data.teacher = ""; // エラー防止対策
                         setClassInfo(prev => ({...prev, ...data}));
                     }
                 });
@@ -318,12 +319,13 @@
                 }
 
                 // 担当者フィルタ (年度ごとにフィルタリング)
-                if (classInfo.teacher && classInfo.teacher.trim() !== "") {
+                // 学年が選択されていない場合のみ検索として機能させる（学年選択中は設定用とするため絞り込まない）
+                if ((!classInfo.grade || classInfo.grade.length === 0) && typeof classInfo.teacher === 'string' && classInfo.teacher.trim() !== "") {
                     const searchText = classInfo.teacher.trim().toLowerCase();
                     const gTeachers = classInfo.gradeTeachers || {};
                     const matchedGrades = Object.keys(gTeachers)
                         .filter(k => k.startsWith(`${classInfo.fiscalYear}_`))
-                        .filter(k => gTeachers[k] && gTeachers[k].toLowerCase().includes(searchText))
+                        .filter(k => typeof gTeachers[k] === 'string' && gTeachers[k].toLowerCase().includes(searchText))
                         .map(k => k.split('_')[1]);
                     list = list.filter(s => matchedGrades.includes(s.grade));
                 }
