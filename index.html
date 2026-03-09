@@ -76,6 +76,7 @@
 <body class="bg-amber-50 text-slate-800 font-sans flex flex-col min-h-screen text-xs md:text-sm">
     <div id="root" class="flex-grow flex flex-col h-screen"></div>
 
+    <!-- type="text/babel" に data-type="module" を追加してFirebase v10をインポート可能にする -->
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, increment, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -347,7 +348,25 @@
             const openEditModal = (s) => { setEditingStudent(s); setNewStudentName(s.name); setNewStudentGrade(s.grade || ""); setNewStudentBirthday(s.birthday || ""); setNewStudentInitialPoints(s.initialPoints || 0); setNewStudentIsHidden(!!s.isHidden); setIsAddModalOpen(true); };
             const closeModal = () => setIsAddModalOpen(false);
             const executeDeleteStudent = async () => { if (studentToDelete) { await deleteDoc(doc(db, 'students', String(studentToDelete.id))); setIsDeleteModalOpen(false); } };
-            const updateStudentInitialPoints = (id, v) => updateDoc(doc(db, 'students', String(id)), { initialPoints: parseInt(v) || 0 });
+            
+            // 初期HKP更新ロジック: ポイント管理アプリと連動させるため、現在の残高も調整する
+            const updateStudentInitialPoints = async (id, v) => {
+                if (!isConfigured) return;
+                const newVal = parseInt(v) || 0;
+                const student = students.find(s => s.id === id);
+                if (!student) return;
+                
+                const oldVal = student.initialPoints || 0;
+                const diff = newVal - oldVal; // 以前の初期値との差分
+                
+                try {
+                    await updateDoc(doc(db, 'students', String(id)), { 
+                        initialPoints: newVal,
+                        pointBalance: increment(diff) // 差分を残高に加算することで連動させる
+                    });
+                } catch (e) { console.error(e); }
+            };
+
             const updateStudentMemo = (id, t) => updateDoc(doc(db, 'students', String(id)), { memo: t });
             const moveStudent = async (idx, dir) => {
                 const list = [...students];
@@ -359,7 +378,7 @@
             };
 
             const exportCSV = () => {
-                let csv = "名前,会員ID,学年,メモ,初期P,累計P,出席数,HKP,欠席数," + sundays.map(d => `${d.getMonth()+1}/${d.getDate()}`).join(",") + "\n";
+                let csv = "名前,会員ID,学年,メモ,初期HKP,累計P,出席数,HKP,欠席数," + sundays.map(d => `${d.getMonth()+1}/${d.getDate()}`).join(",") + "\n";
                 students.forEach(s => {
                     const stats = calculateStats(s);
                     csv += `${s.name},${s.id},${s.grade ? '小'+s.grade : ""},${s.memo},${s.initialPoints},${stats.totalPoints},${stats.presentCount},${stats.hkp},0,` + sundays.map(d => {
@@ -467,7 +486,16 @@
                                                                 </div>
                                                                 <div className="flex items-center gap-1 no-print text-[9px]">
                                                                     {student.birthday && <div className="text-gray-400 flex items-center gap-0.5"><Icon name="Calendar" size={9} />{student.birthday.substring(5).replace('-', '/')}</div>}
-                                                                    <div className="text-gray-500 bg-gray-100 px-1 rounded ml-auto flex items-center gap-1">初期:<input type="number" defaultValue={student.initialPoints} onBlur={(e) => updateStudentInitialPoints(student.id, e.target.value)} className="w-6 bg-transparent text-right outline-none" /></div>
+                                                                    <div className="text-gray-500 bg-gray-100 px-1 rounded ml-auto flex items-center gap-1 whitespace-nowrap">
+                                                                        <span>初期HKP:</span>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            step="10" 
+                                                                            defaultValue={student.initialPoints} 
+                                                                            onBlur={(e) => updateStudentInitialPoints(student.id, e.target.value)} 
+                                                                            className="w-10 bg-transparent text-right outline-none border-b border-gray-300" 
+                                                                        />
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </td>
@@ -482,7 +510,7 @@
                                                             const st = attendance[`${student.id}_${dk}`];
                                                             const isBirth = isBirthdayNear(student.birthday, d);
                                                             return (
-                                                                <td key={dk} className={`p-1 relative border-l border-gray-100 ${bonusMonths[g.key] && !student.isHidden ? 'bg-yellow-50/30' : ''}`}>
+                                                                <td key={dk} className={`p-1 relative border-l border-gray-100 ${bonusMonths[g.key] && !student.isHidden ? 'bg-yellow-50/20' : ''}`}>
                                                                     {isBirth && !student.isHidden && <div className="absolute -top-1 -right-1 z-10 animate-bounce no-print">🎂</div>}
                                                                     <button onClick={() => toggleAttendance(student.id, dk)} disabled={student.isHidden} className={`w-full h-8 md:h-9 rounded-md flex items-center justify-center transition border ${getCellColor(st)} print:border-black print:h-7 ${student.isHidden ? 'opacity-30' : ''}`}>
                                                                         {st && <Icon name={getStatusIcon(st)} size={14} />}
@@ -524,8 +552,11 @@
                                         <div className="flex-1"><label className="block text-sm font-medium mb-1">学年</label><select value={newStudentGrade} onChange={(e) => setNewStudentGrade(e.target.value)} className="w-full p-2 border rounded-lg outline-none bg-white"><option value="">選択</option>{['1','2','3','4','5','6'].map(g => <option key={g} value={g}>小{g}</option>)}</select></div>
                                     </div>
                                     <div className="flex gap-4 mb-6">
-                                        <div className="flex-1"><label className="block text-sm font-medium mb-1">誕生日 (任意)</label><input type="date" value={newStudentBirthday} onChange={(e) => setNewStudentBirthday(e.target.value)} className="w-full p-2 border rounded-lg outline-none" /></div>
-                                        <div className="w-24"><label className="block text-sm font-medium mb-1">初期P</label><input type="number" value={newStudentInitialPoints} onChange={(e) => setNewStudentInitialPoints(e.target.value)} className="w-full p-2 border rounded-lg outline-none text-right" /></div>
+                                        <div className="flex-1"><label className="block text-sm font-medium text-gray-700 mb-1">誕生日 (任意)</label><input type="date" value={newStudentBirthday} onChange={(e) => setNewStudentBirthday(e.target.value)} className="w-full p-2 border rounded-lg outline-none" /></div>
+                                        <div className="w-24">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1 whitespace-nowrap">初期HKP</label>
+                                            <input type="number" step="10" value={newStudentInitialPoints} onChange={(e) => setNewStudentInitialPoints(e.target.value)} className="w-full p-2 border rounded-lg outline-none text-right" />
+                                        </div>
                                     </div>
                                     {editingStudent && <div className="mb-6 p-2 bg-gray-50 rounded-lg"><label className="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" checked={newStudentIsHidden} onChange={(e) => setNewStudentIsHidden(e.target.checked)} className="accent-amber-500" />リストに表示しない (非表示)</label></div>}
                                     <div className="flex justify-end gap-3"><button type="button" onClick={closeModal} className="px-4 py-2 text-gray-500">キャンセル</button><button type="submit" disabled={!newStudentName.trim()} className="px-6 py-2 bg-amber-500 text-white rounded-lg font-bold shadow hover:bg-amber-600">保存</button></div>
