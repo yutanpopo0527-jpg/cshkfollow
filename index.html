@@ -329,26 +329,6 @@
                 } catch (e) { console.error(e); }
             };
 
-            const handleSaveStudent = async (e) => {
-                e.preventDefault();
-                if (!newStudentName.trim()) return;
-                try {
-                    if (editingStudent) {
-                        await updateDoc(doc(db, 'students', String(editingStudent.id)), { name: newStudentName, grade: newStudentGrade, birthday: newStudentBirthday, initialPoints: parseInt(newStudentInitialPoints) || 0, isHidden: newStudentIsHidden });
-                    } else {
-                        const ids = students.map(s => parseInt(s.id)).filter(id => !isNaN(id));
-                        const newId = String((ids.length > 0 ? Math.max(...ids) : 0) + 1);
-                        await setDoc(doc(db, 'students', newId), { name: newStudentName, grade: newStudentGrade, birthday: newStudentBirthday, initialPoints: parseInt(newStudentInitialPoints) || 0, pointBalance: parseInt(newStudentInitialPoints) || 0, memo: "", isHidden: newStudentIsHidden, sortIndex: students.length });
-                    }
-                    closeModal();
-                } catch (e) { console.error(e); }
-            };
-
-            const openAddModal = () => { setEditingStudent(null); setNewStudentName(""); setNewStudentGrade(""); setNewStudentBirthday(""); setNewStudentInitialPoints(0); setNewStudentIsHidden(false); setIsAddModalOpen(true); };
-            const openEditModal = (s) => { setEditingStudent(s); setNewStudentName(s.name); setNewStudentGrade(s.grade || ""); setNewStudentBirthday(s.birthday || ""); setNewStudentInitialPoints(s.initialPoints || 0); setNewStudentIsHidden(!!s.isHidden); setIsAddModalOpen(true); };
-            const closeModal = () => setIsAddModalOpen(false);
-            const executeDeleteStudent = async () => { if (studentToDelete) { await deleteDoc(doc(db, 'students', String(studentToDelete.id))); setIsDeleteModalOpen(false); } };
-            
             // 初期HKP更新ロジック: ポイント管理アプリと連動させるため、現在の残高も調整する
             const updateStudentInitialPoints = async (id, v) => {
                 if (!isConfigured) return;
@@ -367,6 +347,47 @@
                 } catch (e) { console.error(e); }
             };
 
+            const handleSaveStudent = async (e) => {
+                e.preventDefault();
+                if (!newStudentName.trim()) return;
+                try {
+                    if (editingStudent) {
+                        // モーダル編集時も初期HKPの変更をHKP（残高）に反映させる
+                        const oldInitial = editingStudent.initialPoints || 0;
+                        const newInitial = parseInt(newStudentInitialPoints) || 0;
+                        const initialDiff = newInitial - oldInitial;
+
+                        await updateDoc(doc(db, 'students', String(editingStudent.id)), { 
+                            name: newStudentName, 
+                            grade: newStudentGrade, 
+                            birthday: newStudentBirthday, 
+                            initialPoints: newInitial, 
+                            pointBalance: increment(initialDiff), // 差分を同期
+                            isHidden: newStudentIsHidden 
+                        });
+                    } else {
+                        const ids = students.map(s => parseInt(s.id)).filter(id => !isNaN(id));
+                        const newId = String((ids.length > 0 ? Math.max(...ids) : 0) + 1);
+                        await setDoc(doc(db, 'students', newId), { 
+                            name: newStudentName, 
+                            grade: newStudentGrade, 
+                            birthday: newStudentBirthday, 
+                            initialPoints: parseInt(newStudentInitialPoints) || 0, 
+                            pointBalance: parseInt(newStudentInitialPoints) || 0, 
+                            memo: "", 
+                            isHidden: newStudentIsHidden, 
+                            sortIndex: students.length 
+                        });
+                    }
+                    closeModal();
+                } catch (e) { console.error(e); }
+            };
+
+            const openAddModal = () => { setEditingStudent(null); setNewStudentName(""); setNewStudentGrade(""); setNewStudentBirthday(""); setNewStudentInitialPoints(0); setNewStudentIsHidden(false); setIsAddModalOpen(true); };
+            const openEditModal = (s) => { setEditingStudent(s); setNewStudentName(s.name); setNewStudentGrade(s.grade || ""); setNewStudentBirthday(s.birthday || ""); setNewStudentInitialPoints(s.initialPoints || 0); setNewStudentIsHidden(!!s.isHidden); setIsAddModalOpen(true); };
+            const closeModal = () => setIsAddModalOpen(false);
+            const executeDeleteStudent = async () => { if (studentToDelete) { await deleteDoc(doc(db, 'students', String(studentToDelete.id))); setIsDeleteModalOpen(false); } };
+            
             const updateStudentMemo = (id, t) => updateDoc(doc(db, 'students', String(id)), { memo: t });
             const moveStudent = async (idx, dir) => {
                 const list = [...students];
