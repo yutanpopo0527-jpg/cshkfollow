@@ -317,13 +317,14 @@
                     list = list.filter(s => s.gender === viewConfig.filterGender);
                 }
 
-                // 担当者フィルタ
+                // 担当者フィルタ (年度ごとにフィルタリング)
                 if (classInfo.teacher && classInfo.teacher.trim() !== "") {
                     const searchText = classInfo.teacher.trim().toLowerCase();
                     const gTeachers = classInfo.gradeTeachers || {};
-                    const matchedGrades = Object.keys(gTeachers).filter(g => 
-                        gTeachers[g] && gTeachers[g].toLowerCase().includes(searchText)
-                    );
+                    const matchedGrades = Object.keys(gTeachers)
+                        .filter(k => k.startsWith(`${classInfo.fiscalYear}_`))
+                        .filter(k => gTeachers[k] && gTeachers[k].toLowerCase().includes(searchText))
+                        .map(k => k.split('_')[1]);
                     list = list.filter(s => matchedGrades.includes(s.grade));
                 }
 
@@ -346,12 +347,13 @@
             // --- Handlers ---
             const handleClassInfoChange = (key, value) => {
                 const newInfo = { ...classInfo, [key]: value };
+                const currentYear = newInfo.fiscalYear;
                 
-                if (key === 'grade') {
-                    const selectedGrades = value;
+                if (key === 'grade' || key === 'fiscalYear') {
+                    const selectedGrades = newInfo.grade || [];
                     if (selectedGrades.length > 0) {
                         const gTeachers = newInfo.gradeTeachers || {};
-                        const teachers = selectedGrades.map(g => gTeachers[g]).filter(Boolean);
+                        const teachers = selectedGrades.map(g => gTeachers[`${currentYear}_${g}`]).filter(Boolean);
                         const uniqueTeachers = [...new Set(teachers)];
                         newInfo.teacher = uniqueTeachers.join(", ");
                     } else {
@@ -363,7 +365,7 @@
                     if (newInfo.grade && newInfo.grade.length > 0) {
                         const newGradeTeachers = { ...(newInfo.gradeTeachers || {}) };
                         newInfo.grade.forEach(g => {
-                            newGradeTeachers[g] = value;
+                            newGradeTeachers[`${currentYear}_${g}`] = value;
                         });
                         newInfo.gradeTeachers = newGradeTeachers;
                     }
@@ -555,8 +557,17 @@
                                                         <td className={`p-1 text-center font-medium text-gray-700 sticky left-[11.5rem] md:left-[15rem] z-20 border-r print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white'}`}>{stats.presentCount}</td>
                                                         <td className={`p-1 text-center border-r sticky left-[14.5rem] md:left-[19rem] z-20 print:static shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:shadow-none ${student.isHidden ? 'bg-gray-100' : 'bg-amber-50 group-hover:bg-amber-100'}`}><div className="font-bold text-amber-700 text-sm md:text-base">{stats.hkp}</div></td>
                                                         {sundaysByMonth.map(g => g.dates.map(d => {
-                                                            const dk = formatDateKey(d), st = attendance[`${student.id}_${dk}`];
-                                                            return <td key={dk} className={`p-1 border-l border-gray-100 ${bonusMonths[g.key] && !student.isHidden ? 'bg-yellow-50/20' : ''}`}><button onClick={() => toggleAttendance(student.id, dk)} disabled={student.isHidden} className={`w-full h-8 md:h-9 rounded-md flex items-center justify-center transition border ${getCellColor(st)} print:border-black print:h-7 ${student.isHidden ? 'opacity-30' : ''}`}>{st && <Icon name={getStatusIcon(st)} size={14} />}</button></td>;
+                                                            const dk = formatDateKey(d);
+                                                            const st = attendance[`${student.id}_${dk}`];
+                                                            const isBirth = isBirthdayNear(student.birthday, d);
+                                                            return (
+                                                                <td key={dk} className={`p-1 relative border-l border-gray-100 ${bonusMonths[g.key] && !student.isHidden ? 'bg-yellow-50/20' : ''}`}>
+                                                                    {isBirth && !student.isHidden && <div className="absolute -top-1 -right-1 z-10 animate-bounce no-print">🎂</div>}
+                                                                    <button onClick={() => toggleAttendance(student.id, dk)} disabled={student.isHidden} className={`w-full h-8 md:h-9 rounded-md flex items-center justify-center transition border ${getCellColor(st)} print:border-black print:h-7 ${student.isHidden ? 'opacity-30' : ''}`}>
+                                                                        {st && <Icon name={getStatusIcon(st)} size={14} />}
+                                                                    </button>
+                                                                </td>
+                                                            );
                                                         }))}
                                                         <td className="p-1 border-l"><input type="text" defaultValue={student.memo} onBlur={(e) => updateStudentMemo(student.id, e.target.value)} disabled={student.isHidden} className="w-full bg-transparent border-b border-transparent focus:border-amber-400 outline-none text-[10px] py-1" /></td>
                                                         <td className="p-1 text-center no-print"><button onClick={() => { setStudentToDelete(student); setIsDeleteModalOpen(true); }} className="text-gray-300 hover:text-red-500"><Icon name="Trash2" size={14} /></button></td>
