@@ -94,8 +94,31 @@
 <body class="bg-amber-50 text-slate-800 font-sans flex flex-col min-h-screen text-xs md:text-sm">
     <div id="root" class="flex-grow flex flex-col h-screen"></div>
 
-    <script type="text/babel">
+    <!-- type="text/babel" に data-type="module" を追加してFirebase v10をインポート可能にする -->
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, increment, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
         const { useState, useEffect, useMemo, useRef } = React;
+
+        // ==========================================
+        // Firebaseの初期設定
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBxriSl6JvV5CfJGEfDUTNXBs9RQJmI28U",
+            authDomain: "hkpointapp.firebaseapp.com",
+            projectId: "hkpointapp",
+            storageBucket: "hkpointapp.firebasestorage.app",
+            messagingSenderId: "696908221772",
+            appId: "1:696908221772:web:0ad30910bd6c7493bbd3e9"
+        };
+
+        const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+        let db;
+        if (isConfigured) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+        }
 
         // --- アイコン定義 ---
         const ICONS = {
@@ -204,44 +227,18 @@
             const initialSemester = (currentMonth >= 4 && currentMonth <= 9) ? "first" : "second";
             const initialFiscalYear = (currentMonth >= 1 && currentMonth <= 3) ? today.getFullYear() - 1 : today.getFullYear();
 
-            // --- State ---
-            const [classInfo, setClassInfo] = useState(() => {
-                const saved = localStorage.getItem('cs_class_info_v2');
-                const parsed = saved ? JSON.parse(saved) : null;
-                if (parsed) {
-                    if (typeof parsed.grade === 'string') {
-                        parsed.grade = parsed.grade ? [parsed.grade] : [];
-                    }
-                    return parsed;
-                } else {
-                    return {
-                        fiscalYear: initialFiscalYear,
-                        semester: initialSemester,
-                        grade: [],
-                        gender: "",
-                        teacher: ""
-                    };
-                }
+            // --- State (Firebase同期用) ---
+            const [classInfo, setClassInfo] = useState({
+                fiscalYear: initialFiscalYear,
+                semester: initialSemester,
+                grade: [],
+                gender: "",
+                teacher: ""
             });
 
-            // 生徒リスト
-            const [students, setStudents] = useState(() => {
-                const saved = localStorage.getItem('cs_students_v3');
-                return saved ? JSON.parse(saved) : [
-                    { id: 1, name: "山田 太郎", memo: "", birthday: "2018-04-15", initialPoints: 0, grade: "1", isHidden: false },
-                    { id: 2, name: "鈴木 花子", memo: "ピアノ", birthday: "2018-08-20", initialPoints: 10, grade: "3", isHidden: false },
-                ];
-            });
-
-            const [attendance, setAttendance] = useState(() => {
-                const saved = localStorage.getItem('cs_attendance');
-                return saved ? JSON.parse(saved) : {};
-            });
-
-            const [bonusMonths, setBonusMonths] = useState(() => {
-                const saved = localStorage.getItem('cs_bonus_months');
-                return saved ? JSON.parse(saved) : {};
-            });
+            const [students, setStudents] = useState([]);
+            const [attendance, setAttendance] = useState({});
+            const [bonusMonths, setBonusMonths] = useState({});
 
             // 表示設定State
             const [viewConfig, setViewConfig] = useState({
@@ -267,11 +264,50 @@
             const [newStudentInitialPoints, setNewStudentInitialPoints] = useState(0);
             const [newStudentIsHidden, setNewStudentIsHidden] = useState(false); // 非表示設定用
 
-            // --- Persistence ---
-            useEffect(() => localStorage.setItem('cs_class_info_v2', JSON.stringify(classInfo)), [classInfo]);
-            useEffect(() => localStorage.setItem('cs_students_v3', JSON.stringify(students)), [students]);
-            useEffect(() => localStorage.setItem('cs_attendance', JSON.stringify(attendance)), [attendance]);
-            useEffect(() => localStorage.setItem('cs_bonus_months', JSON.stringify(bonusMonths)), [bonusMonths]);
+            // ==========================================
+            // Firebase リアルタイム同期
+            // ==========================================
+            useEffect(() => {
+                if (!isConfigured) return;
+
+                // 初回アクセス時に設定ドキュメントがなければ作成
+                const initSettings = async () => {
+                    const refs = ['classInfo', 'attendance', 'bonusMonths'];
+                    for (const name of refs) {
+                        const docRef = doc(db, 'cs_settings', name);
+                        const snap = await getDoc(docRef);
+                        if (!snap.exists()) {
+                            await setDoc(docRef, {});
+                        }
+                    }
+                };
+                initSettings();
+
+                // データの購読
+                const unsubClass = onSnapshot(doc(db, 'cs_settings', 'classInfo'), doc => {
+                    if (doc.exists() && Object.keys(doc.data()).length > 0) {
+                        const data = doc.data();
+                        if (typeof data.grade === 'string') data.grade = data.grade ? [data.grade] : [];
+                        setClassInfo(data);
+                    }
+                });
+                const unsubAttendance = onSnapshot(doc(db, 'cs_settings', 'attendance'), doc => {
+                    if (doc.exists()) setAttendance(doc.data());
+                    else setAttendance({});
+                });
+                const unsubBonus = onSnapshot(doc(db, 'cs_settings', 'bonusMonths'), doc => {
+                    if (doc.exists()) setBonusMonths(doc.data());
+                    else setBonusMonths({});
+                });
+                const unsubStudents = onSnapshot(collection(db, 'students'), snapshot => {
+                    const list = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+                    // 登録時の順序(sortIndex)で並び替え
+                    list.sort((a, b) => (a.sortIndex || 0) - (b.sortIndex || 0));
+                    setStudents(list);
+                });
+
+                return () => { unsubClass(); unsubAttendance(); unsubBonus(); unsubStudents(); };
+            }, []);
 
             // --- Logic ---
             const sundays = useMemo(() => {
@@ -339,7 +375,8 @@
                     const status = attendance[key];
                     const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
                     const isBonus = bonusMonths[monthKey];
-                    const pointsPerAttend = isBonus ? 3 : 1;
+                    // ★変更: 出席で+10P、3倍月間は+30P
+                    const pointsPerAttend = isBonus ? 30 : 10;
 
                     if (status === 'present') {
                         presentCount++;
@@ -347,7 +384,11 @@
                     }
                     if (status === 'absent') absentCount++;
                 });
-                return { presentCount, absentCount, totalPoints };
+
+                // QRレジと連動したFirebaseの残高(HKP)を優先して取得
+                let hkp = student.pointBalance !== undefined ? student.pointBalance : totalPoints;
+
+                return { presentCount, absentCount, totalPoints, hkp };
             };
 
             // --- Processed Students (Filter & Sort) ---
@@ -381,14 +422,14 @@
                 if (viewConfig.sort === 'grade') {
                     list.sort((a, b) => (a.grade || "9").localeCompare(b.grade || "9"));
                 } else if (viewConfig.sort === 'points_desc') {
-                    list.sort((a, b) => b.stats.totalPoints - a.stats.totalPoints);
+                    list.sort((a, b) => b.stats.hkp - a.stats.hkp);
                 } else if (viewConfig.sort === 'birthday') {
                     list.sort((a, b) => {
                         if (!a.birthday) return 1;
                         if (!b.birthday) return -1;
+                        // Sort by Month-Day (ignore year)
                         const dA = new Date(a.birthday);
                         const dB = new Date(b.birthday);
-                        // Sort by Month-Day (ignore year)
                         const mdA = (dA.getMonth() + 1) * 100 + dA.getDate();
                         const mdB = (dB.getMonth() + 1) * 100 + dB.getDate();
                         return mdA - mdB;
@@ -400,8 +441,22 @@
             }, [students, attendance, bonusMonths, viewConfig, sundays]);
 
 
-            // --- Handlers ---
-            const toggleAttendance = (studentId, dateKey) => {
+            // ==========================================
+            // ハンドラ (Firebase更新用)
+            // ==========================================
+
+            const handleClassInfoChange = (key, value) => {
+                const newInfo = { ...classInfo, [key]: value };
+                setClassInfo(newInfo); // Optimistic UI
+                if (isConfigured) {
+                    setDoc(doc(db, 'cs_settings', 'classInfo'), newInfo, { merge: true }).catch(console.error);
+                }
+            };
+
+            // 出席のトグルとポイント自動連動
+            const toggleAttendance = async (studentId, dateKey) => {
+                if (!isConfigured) return alert("Firebaseが設定されていません。");
+
                 const key = `${studentId}_${dateKey}`;
                 const currentStatus = attendance[key];
                 let nextStatus;
@@ -412,50 +467,106 @@
                 else if (currentStatus === 'holiday') nextStatus = null;
                 else nextStatus = 'present';
 
-                const newAttendance = { ...attendance };
-                if (nextStatus === null) delete newAttendance[key];
-                else newAttendance[key] = nextStatus;
-                setAttendance(newAttendance);
+                // --- ポイント連動の計算 ---
+                const d = new Date(dateKey);
+                const monthKeyForBonus = `${d.getFullYear()}-${d.getMonth() + 1}`;
+                const isBonus = bonusMonths[monthKeyForBonus];
+                // ★変更: 出席で+10P、3倍月間は+30P
+                const pointsToAdd = isBonus ? 30 : 10;
+
+                let pointDiff = 0;
+                // 今回「出席」になったら加算
+                if (currentStatus !== 'present' && nextStatus === 'present') pointDiff = pointsToAdd;
+                // 「出席」を取り消したら減算
+                else if (currentStatus === 'present' && nextStatus !== 'present') pointDiff = -pointsToAdd;
+
+                try {
+                    const batch = writeBatch(db);
+                    
+                    // 出欠記録の更新
+                    if (nextStatus === null) {
+                        batch.update(doc(db, 'cs_settings', 'attendance'), { [key]: deleteField() });
+                    } else {
+                        batch.update(doc(db, 'cs_settings', 'attendance'), { [key]: nextStatus });
+                    }
+                    
+                    // 生徒のポイント残高を更新
+                    if (pointDiff !== 0) {
+                        batch.update(doc(db, 'students', String(studentId)), { pointBalance: increment(pointDiff) });
+                    }
+                    
+                    await batch.commit();
+                } catch (e) {
+                    console.error("更新エラー", e);
+                }
             };
 
-            const toggleBonusMonth = (monthKey) => {
-                setBonusMonths(prev => ({
-                    ...prev,
-                    [monthKey]: !prev[monthKey]
-                }));
+            const toggleBonusMonth = async (monthKey) => {
+                if (!isConfigured) return;
+                const isCurrentlyBonus = !!bonusMonths[monthKey];
+                try {
+                    await updateDoc(doc(db, 'cs_settings', 'bonusMonths'), {
+                        [monthKey]: isCurrentlyBonus ? deleteField() : true
+                    });
+                } catch(e) {
+                    await setDoc(doc(db, 'cs_settings', 'bonusMonths'), {
+                        [monthKey]: !isCurrentlyBonus
+                    }, { merge: true });
+                }
             };
 
-            const updateStudentInitialPoints = (id, points) => {
+            const updateStudentInitialPoints = async (id, points) => {
+                if (!isConfigured) return;
                 const val = parseInt(points) || 0;
-                setStudents(students.map(s => s.id === id ? { ...s, initialPoints: val } : s));
+                try {
+                    await updateDoc(doc(db, 'students', String(id)), { initialPoints: val });
+                } catch(e) { console.error(e); }
             };
 
-            const handleSaveStudent = (e) => {
+            const updateStudentMemo = async (id, text) => {
+                if (!isConfigured) return;
+                try {
+                    await updateDoc(doc(db, 'students', String(id)), { memo: text });
+                } catch(e) { console.error(e); }
+            };
+
+            const handleSaveStudent = async (e) => {
                 e.preventDefault();
+                if (!isConfigured) return alert("Firebaseが設定されていません。");
                 if (!newStudentName.trim()) return;
 
-                if (editingStudent) {
-                    setStudents(students.map(s => s.id === editingStudent.id ? {
-                        ...s,
-                        name: newStudentName,
-                        grade: newStudentGrade,
-                        birthday: newStudentBirthday,
-                        initialPoints: parseInt(newStudentInitialPoints) || 0,
-                        isHidden: newStudentIsHidden
-                    } : s));
-                } else {
-                    const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
-                    setStudents([...students, { 
-                        id: newId, 
-                        name: newStudentName, 
-                        memo: "", 
-                        birthday: newStudentBirthday,
-                        initialPoints: parseInt(newStudentInitialPoints) || 0,
-                        grade: newStudentGrade,
-                        isHidden: newStudentIsHidden
-                    }]);
+                try {
+                    if (editingStudent) {
+                        await updateDoc(doc(db, 'students', String(editingStudent.id)), {
+                            name: newStudentName,
+                            grade: newStudentGrade,
+                            birthday: newStudentBirthday,
+                            initialPoints: parseInt(newStudentInitialPoints) || 0,
+                            isHidden: newStudentIsHidden
+                        });
+                    } else {
+                        // 新規作成時：IDを自動採番して文字列にする (これがQRコード用のIDになります)
+                        // maxIdの計算を修正し、正しく最大のIDを取得するようにしました
+                        const currentIds = students.map(s => parseInt(s.id, 10)).filter(id => !isNaN(id));
+                        const maxId = currentIds.length > 0 ? Math.max(...currentIds) : 0;
+                        const newId = String(maxId + 1);
+                        
+                        await setDoc(doc(db, 'students', newId), {
+                            name: newStudentName,
+                            grade: newStudentGrade,
+                            birthday: newStudentBirthday,
+                            initialPoints: parseInt(newStudentInitialPoints) || 0,
+                            pointBalance: parseInt(newStudentInitialPoints) || 0,
+                            memo: "",
+                            isHidden: newStudentIsHidden,
+                            sortIndex: students.length
+                        });
+                    }
+                    closeModal();
+                } catch (e) {
+                    console.error("保存エラー", e);
+                    alert("保存に失敗しました。");
                 }
-                closeModal();
             };
 
             const openAddModal = () => {
@@ -488,29 +599,37 @@
                 setNewStudentIsHidden(false);
             };
 
-            const executeDeleteStudent = () => {
-                if (studentToDelete) {
-                    setStudents(students.filter(s => s.id !== studentToDelete.id));
-                    setStudentToDelete(null);
+            const executeDeleteStudent = async () => {
+                if (!isConfigured || !studentToDelete) return;
+                try {
+                    await deleteDoc(doc(db, 'students', String(studentToDelete.id)));
                     setIsDeleteModalOpen(false);
-                }
+                    setStudentToDelete(null);
+                } catch (e) { console.error(e); }
             };
             
-            const moveStudent = (index, direction) => {
+            const moveStudent = async (index, direction) => {
+                if (!isConfigured) return;
                 const newStudents = [...students];
                 if (direction === 'up' && index > 0) {
                     [newStudents[index], newStudents[index - 1]] = [newStudents[index - 1], newStudents[index]];
                 } else if (direction === 'down' && index < newStudents.length - 1) {
                     [newStudents[index], newStudents[index + 1]] = [newStudents[index + 1], newStudents[index]];
                 }
-                setStudents(newStudents);
+                
+                // Firestoreのバッチ更新
+                const batch = writeBatch(db);
+                newStudents.forEach((s, i) => {
+                    batch.update(doc(db, 'students', String(s.id)), { sortIndex: i });
+                });
+                await batch.commit();
             };
 
-            // データ保存・復元
+            // データ保存・復元 (Firestore対応版)
             const handleExportData = () => {
                 const dataToSave = {
                     app: "cs-attendance",
-                    version: "1.0",
+                    version: "2.0",
                     date: new Date().toISOString(),
                     classInfo,
                     students,
@@ -537,7 +656,7 @@
                 }
 
                 const reader = new FileReader();
-                reader.onload = (ev) => {
+                reader.onload = async (ev) => {
                     try {
                         const data = JSON.parse(ev.target.result);
                         if (data.app !== "cs-attendance") {
@@ -545,11 +664,18 @@
                             return;
                         }
                         
-                        // データの適用
-                        if(data.classInfo) setClassInfo(data.classInfo);
-                        if(data.students) setStudents(data.students);
-                        if(data.attendance) setAttendance(data.attendance);
-                        if(data.bonusMonths) setBonusMonths(data.bonusMonths);
+                        // データの適用 (Firestoreへ)
+                        const batch = writeBatch(db);
+                        if(data.classInfo) batch.set(doc(db, 'cs_settings', 'classInfo'), data.classInfo);
+                        if(data.attendance) batch.set(doc(db, 'cs_settings', 'attendance'), data.attendance);
+                        if(data.bonusMonths) batch.set(doc(db, 'cs_settings', 'bonusMonths'), data.bonusMonths);
+                        
+                        if(data.students) {
+                            data.students.forEach(s => {
+                                batch.set(doc(db, 'students', String(s.id)), s);
+                            });
+                        }
+                        await batch.commit();
                         
                         alert("データを復元しました！");
                         setIsDataModalOpen(false);
@@ -565,7 +691,7 @@
             const exportCSV = () => {
                 let csvContent = "data:text/csv;charset=utf-8,";
                 const dateHeaders = sundays.map(d => `${d.getMonth()+1}/${d.getDate()}`).join(",");
-                csvContent += `名前,学年,メモ,初期P,合計P,出席数,欠席数,${dateHeaders}\n`;
+                csvContent += `名前,学年,メモ,初期P,合計P,出席数,HKP,欠席数,${dateHeaders}\n`;
 
                 students.forEach(s => {
                     const stats = calculateStats(s);
@@ -576,6 +702,7 @@
                         s.initialPoints,
                         stats.totalPoints,
                         stats.presentCount,
+                        stats.hkp,
                         stats.absentCount,
                         ...sundays.map(d => {
                             const key = `${s.id}_${formatDateKey(d)}`;
@@ -601,7 +728,7 @@
 
             const executePrint = (targetSemester) => {
                 if (classInfo.semester !== targetSemester) {
-                    setClassInfo(prev => ({ ...prev, semester: targetSemester }));
+                    handleClassInfoChange('semester', targetSemester);
                     setTimeout(() => {
                         window.print();
                     }, 500);
@@ -622,18 +749,24 @@
                 // 未入力日がなければ最後の日、あればその日の3倍設定を参照
                 const targetDate = nextSunday || sundays[sundays.length - 1];
                 const monthKey = `${targetDate.getFullYear()}-${targetDate.getMonth() + 1}`;
-                return bonusMonths[monthKey] ? 3 : 1;
+                // ★変更: プレゼント判定用の次回のポイント見込み
+                return bonusMonths[monthKey] ? 30 : 10;
             };
 
+            // ★変更: プレゼント通知の判定
             const isGiftNear = (currentPoints, studentId) => {
                 const nextPoints = getNextBonusInfo(studentId);
                 
-                if (currentPoints > 0 && currentPoints % 10 === 0) {
+                // ★100ポイント単位(100, 200, 300...)に変更
+                if (currentPoints > 0 && currentPoints % 100 === 0) {
                     return false;
                 }
 
-                const remainder = currentPoints % 10;
-                if (remainder + nextPoints >= 10) {
+                // ★変更: 次回のポイントを足した時に100の位が繰り上がるか(100の倍数を超えるか)を判定
+                const currentHundred = Math.floor(currentPoints / 100);
+                const nextHundred = Math.floor((currentPoints + nextPoints) / 100);
+
+                if (nextHundred > currentHundred) {
                     return true;
                 }
                 return false;
@@ -675,6 +808,13 @@
 
             return (
                 <div className="flex flex-col h-full min-h-screen">
+                    {/* Firebase未設定警告 */}
+                    {!isConfigured && (
+                        <div className="bg-red-100 text-red-700 px-4 py-2 text-center text-sm font-bold no-print shadow-sm">
+                            Firebaseが設定されていません。コード内の firebaseConfig をご自身のものに書き換えてください。
+                        </div>
+                    )}
+
                     {/* ヘッダー (画面用) */}
                     <header className="bg-white shadow-sm border-b border-amber-200 sticky top-0 z-[60] no-print">
                         <div className="max-w-full mx-auto px-4 py-2 md:py-3 flex flex-col md:flex-row items-center justify-between gap-3 border-b border-gray-100">
@@ -690,21 +830,21 @@
                                     <input 
                                         type="number" 
                                         value={classInfo.fiscalYear}
-                                        onChange={(e) => setClassInfo({...classInfo, fiscalYear: e.target.value})}
+                                        onChange={(e) => handleClassInfoChange('fiscalYear', e.target.value)}
                                         className="w-16 md:w-20 p-1 text-center bg-white border border-gray-300 rounded-l-md focus:ring-amber-500 focus:border-amber-500 text-xs md:text-sm"
                                     />
                                     <span className="bg-gray-100 border border-l-0 border-gray-300 rounded-r-md px-1.5 md:px-2 py-1 text-xs md:text-sm font-medium">年度</span>
                                 </div>
                                 <div className="flex bg-white rounded-md border border-gray-300 overflow-hidden">
                                     <button 
-                                        onClick={() => setClassInfo({...classInfo, semester: 'first'})}
+                                        onClick={() => handleClassInfoChange('semester', 'first')}
                                         className={`px-2 py-1 md:px-3 text-xs md:text-sm font-medium transition ${classInfo.semester === 'first' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
                                     >
                                         上半期(4-9月)
                                     </button>
                                     <div className="w-px bg-gray-300"></div>
                                     <button 
-                                        onClick={() => setClassInfo({...classInfo, semester: 'second'})}
+                                        onClick={() => handleClassInfoChange('semester', 'second')}
                                         className={`px-2 py-1 md:px-3 text-xs md:text-sm font-medium transition ${classInfo.semester === 'second' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
                                     >
                                         下半期(10-3月)
@@ -714,7 +854,7 @@
 
                             <div className="flex gap-1.5 md:gap-2 no-print overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
                                 <button 
-                                    onClick={() => setIsAddModalOpen(true)}
+                                    onClick={openAddModal}
                                     className="flex-shrink-0 flex items-center gap-1 md:gap-2 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 md:px-3 md:py-2 rounded-lg font-medium transition shadow-sm text-xs md:text-sm"
                                 >
                                     <Icon name="UserPlus" size={14} className="md:w-4 md:h-4" />
@@ -765,18 +905,18 @@
                                 {/* 学年複数選択コンポーネント */}
                                 <GradeSelector 
                                     selectedGrades={classInfo.grade}
-                                    onChange={(newGrades) => setClassInfo({...classInfo, grade: newGrades})}
+                                    onChange={(newGrades) => handleClassInfoChange('grade', newGrades)}
                                 />
                             </div>
                             
                             <div className="flex items-center gap-2">
                                 <span className="font-bold text-gray-600">性別:</span>
                                 <label className="flex items-center gap-1 cursor-pointer">
-                                    <input type="radio" name="gender" value="male" checked={classInfo.gender === 'male'} onChange={(e) => setClassInfo({...classInfo, gender: e.target.value})} />
+                                    <input type="radio" name="gender" value="male" checked={classInfo.gender === 'male'} onChange={(e) => handleClassInfoChange('gender', e.target.value)} />
                                     <span>男</span>
                                 </label>
                                 <label className="flex items-center gap-1 cursor-pointer">
-                                    <input type="radio" name="gender" value="female" checked={classInfo.gender === 'female'} onChange={(e) => setClassInfo({...classInfo, gender: e.target.value})} />
+                                    <input type="radio" name="gender" value="female" checked={classInfo.gender === 'female'} onChange={(e) => handleClassInfoChange('gender', e.target.value)} />
                                     <span>女</span>
                                 </label>
                             </div>
@@ -786,7 +926,7 @@
                                 <input 
                                     type="text" 
                                     value={classInfo.teacher}
-                                    onChange={(e) => setClassInfo({...classInfo, teacher: e.target.value})}
+                                    onChange={(e) => handleClassInfoChange('teacher', e.target.value)}
                                     placeholder="名前を入力"
                                     className="w-full border border-gray-300 rounded px-2 py-1 focus:ring-amber-500 focus:border-amber-500 bg-white"
                                 />
@@ -833,7 +973,7 @@
                                         <thead>
                                             {/* ヘッダー1行目：月表示と3倍チェック */}
                                             <tr className="bg-gray-100 text-gray-700 text-xs md:text-sm border-b border-gray-200">
-                                                <th colSpan="4" className="p-1 md:p-2 border-r sticky left-0 z-50 bg-gray-100 print:static"></th>
+                                                <th colSpan="5" className="p-1 md:p-2 border-r sticky left-0 z-50 bg-gray-100 print:static"></th>
                                                 {sundaysByMonth.map(group => (
                                                     <th key={group.key} colSpan={group.dates.length} className="p-1 md:p-2 border-r text-center border-gray-300 sticky top-0 z-50 bg-gray-100">
                                                         <div className="flex flex-col items-center justify-center gap-0.5 md:gap-1">
@@ -865,8 +1005,11 @@
                                                 <th className="p-2 md:p-3 w-14 md:w-20 min-w-[60px] md:min-w-[70px] text-center font-medium border-r text-[10px] md:text-xs sticky left-[9.5rem] md:left-[14rem] z-50 print:static bg-gray-50">
                                                     合計P
                                                 </th>
-                                                <th className="p-2 md:p-3 w-12 md:w-16 min-w-[50px] md:min-w-[60px] text-center font-medium border-r text-[10px] md:text-xs sticky left-[13rem] md:left-[19rem] z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:static print:shadow-none bg-gray-50">
+                                                <th className="p-2 md:p-3 w-12 md:w-16 min-w-[50px] md:min-w-[60px] text-center font-medium border-r text-[10px] md:text-xs sticky left-[13rem] md:left-[19rem] z-50 print:static bg-gray-50">
                                                     出席数
+                                                </th>
+                                                <th className="p-2 md:p-3 w-14 md:w-20 min-w-[60px] md:min-w-[70px] text-center font-medium border-r text-[10px] md:text-xs sticky left-[16rem] md:left-[23rem] z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:static print:shadow-none bg-gray-50">
+                                                    HKP
                                                 </th>
                                                 
                                                 {sundaysByMonth.map(group => (
@@ -891,7 +1034,7 @@
                                         <tbody className="divide-y divide-gray-100">
                                             {students.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={sundays.length + 6} className="p-12 text-center text-gray-400">
+                                                    <td colSpan={sundays.length + 7} className="p-12 text-center text-gray-400">
                                                         <div className="flex flex-col items-center gap-2">
                                                             <Icon name="Users" size={48} className="text-gray-300" />
                                                             <p>生徒登録ボタンからメンバーを追加してください。</p>
@@ -902,8 +1045,8 @@
                                                 processedStudents.map((student, idx) => {
                                                     // Note: We use idx for display order only here. moveStudent needs original index if not filtered/sorted.
                                                     const stats = calculateStats(student);
+                                                    // ★変更: プレゼント通知の判定を HKP(stats.hkp) から 合計P(stats.totalPoints) に戻す
                                                     const nearGift = isGiftNear(stats.totalPoints, student.id);
-                                                    const gainedPoints = stats.totalPoints - student.initialPoints;
                                                     
                                                     // Find original index for moveStudent
                                                     const originalIndex = students.findIndex(s => s.id === student.id);
@@ -946,13 +1089,13 @@
                                                                                 {student.birthday.substring(5).replace('-', '/')}
                                                                             </div>
                                                                         )}
-                                                                        {/* 初期ポイント入力 (印刷時は非表示) */}
+                                                                        {/* 初期ポイント入力 (印刷時は非表示) 通信を抑えるため onBlur に変更 */}
                                                                         <div className="flex items-center gap-1 text-[9px] md:text-[10px] text-gray-500 bg-gray-100 px-1 rounded ml-auto no-print">
                                                                             <span>初期:</span>
                                                                             <input 
                                                                                 type="number" 
-                                                                                value={student.initialPoints} 
-                                                                                onChange={(e) => updateStudentInitialPoints(student.id, e.target.value)}
+                                                                                defaultValue={student.initialPoints} 
+                                                                                onBlur={(e) => updateStudentInitialPoints(student.id, e.target.value)}
                                                                                 className="w-6 md:w-8 bg-transparent text-right border-b border-gray-300 focus:border-amber-400 outline-none"
                                                                             />
                                                                         </div>
@@ -963,11 +1106,11 @@
                                                                     </div>
                                                                 </div>
                                                             </td>
-                                                            {/* 合計ポイントセル */}
-                                                            <td className={`p-1 md:p-2 text-center border-r transition-colors relative sticky left-[9.5rem] md:left-[14rem] z-30 print:static ${student.isHidden ? 'bg-gray-100' : 'bg-amber-50 group-hover:bg-amber-100'}`}>
+                                                            {/* 合計ポイントセル (デザインを控えめに変更) */}
+                                                            <td className={`p-1 md:p-2 text-center border-r transition-colors relative sticky left-[9.5rem] md:left-[14rem] z-30 print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white group-hover:bg-gray-50'}`}>
                                                                 <div className="flex flex-col items-center justify-center h-full gap-0.5">
-                                                                    <div className="font-bold text-sm md:text-lg text-amber-700">{stats.totalPoints}</div>
-                                                                    {/* プレゼントお知らせ */}
+                                                                    <div className="font-bold text-sm md:text-lg text-gray-600">{stats.totalPoints}</div>
+                                                                    {/* ★変更: プレゼントお知らせを合計Pの列に戻す */}
                                                                     {nearGift && !student.isHidden && (
                                                                         <div className="bg-red-500 text-white text-[8px] md:text-[9px] px-1.5 py-0.5 rounded-full shadow-sm border border-white flex items-center gap-0.5 whitespace-nowrap no-print z-[100]">
                                                                             <Icon name="Gift" size={8} />
@@ -977,8 +1120,14 @@
                                                                 </div>
                                                             </td>
                                                             {/* 出席数 セル (Sticky順序調整) */}
-                                                            <td className={`p-1 md:p-2 text-center border-r font-medium text-gray-700 text-xs md:text-sm sticky left-[13rem] md:left-[19rem] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:static print:shadow-none ${student.isHidden ? 'bg-gray-100' : 'bg-white'}`}>
+                                                            <td className={`p-1 md:p-2 text-center border-r font-medium text-gray-700 text-xs md:text-sm sticky left-[13rem] md:left-[19rem] z-20 print:static print:shadow-none ${student.isHidden ? 'bg-gray-100' : 'bg-white'}`}>
                                                                 {stats.presentCount}
+                                                            </td>
+                                                            {/* HKP セル (新設・プレゼント通知はこちらに移動) */}
+                                                            <td className={`p-1 md:p-2 text-center border-r transition-colors relative sticky left-[16rem] md:left-[23rem] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:static print:shadow-none ${student.isHidden ? 'bg-gray-100' : 'bg-amber-50 group-hover:bg-amber-100'}`}>
+                                                                <div className="flex flex-col items-center justify-center h-full gap-0.5">
+                                                                    <div className="font-bold text-sm md:text-lg text-amber-700">{stats.hkp}</div>
+                                                                </div>
                                                             </td>
 
                                                             {sundaysByMonth.map(group => (
@@ -1011,10 +1160,13 @@
                                                             ))}
                                                             
                                                             <td className="p-1 md:p-2 border-l">
+                                                                {/* メモ欄 (通信を抑えるため onBlur に変更) */}
                                                                 <input 
                                                                     type="text" 
-                                                                    value={student.memo}
-                                                                    onChange={(e) => setStudents(students.map(s => s.id === student.id ? { ...s, memo: e.target.value } : s))}
+                                                                    defaultValue={student.memo}
+                                                                    onBlur={(e) => {
+                                                                        if(e.target.value !== student.memo) updateStudentMemo(student.id, e.target.value);
+                                                                    }}
                                                                     placeholder="..."
                                                                     disabled={student.isHidden}
                                                                     className="w-full bg-transparent border-b border-transparent focus:border-amber-400 focus:outline-none text-[10px] md:text-xs py-1 print:border-none disabled:opacity-50"
@@ -1044,10 +1196,11 @@
                     <footer className="bg-white border-t border-gray-200 p-2 md:p-4 z-20 no-print">
                         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
                             <div className="flex flex-wrap gap-2 md:gap-4 text-[10px] md:text-xs text-gray-600 justify-center">
-                                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-green-100 border border-green-300"></span> 出席 (+1P)</div>
+                                {/* ★変更: フッターのテキストを +10P, +30P に修正 */}
+                                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-green-100 border border-green-300"></span> 出席 (+10P)</div>
                                 <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-red-100 border border-red-300"></span> 欠席</div>
                                 <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-gray-200 border border-gray-300"></span> CS休み</div>
-                                <div className="flex items-center gap-1"><span className="font-bold text-amber-600 bg-yellow-100 px-1 rounded">★3倍</span> 月間は+3P</div>
+                                <div className="flex items-center gap-1"><span className="font-bold text-amber-600 bg-yellow-100 px-1 rounded">★3倍</span> 月間は+30P</div>
                             </div>
                             <div className="text-gray-400 text-xs font-medium">
                                 東広島めぐみ教会 CS出席管理
@@ -1216,7 +1369,7 @@
                                         {[
                                             { val: 'manual', label: '標準 (登録順)' },
                                             { val: 'grade', label: '学年順' },
-                                            { val: 'points_desc', label: '合計ポイント順 (多い順)' },
+                                            { val: 'points_desc', label: 'HKP順 (多い順)' },
                                             { val: 'birthday', label: '誕生日順 (1月〜12月)' }
                                         ].map(opt => (
                                             <label key={opt.val} className="flex items-center p-2 rounded hover:bg-gray-50 cursor-pointer">
