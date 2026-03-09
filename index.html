@@ -40,7 +40,7 @@
         @media print {
             @page {
                 size: B4 landscape; /* B4 横向き */
-                margin: 5mm; /* 余白を詰める */
+                margin: 5mm; 
             }
             body { 
                 font-size: 9pt; 
@@ -52,25 +52,15 @@
             .no-print { display: none !important; }
             .print-border { border: 1px solid #000; }
             .overflow-x-auto { overflow-x: visible; }
-            
-            /* 印刷時はスクロール領域を全展開 */
             .absolute.inset-0 { position: static; height: auto; }
             main { overflow: visible; }
-            
-            /* 印刷時に全体を縮小して3月まで収める */
             .print-scale-wrapper {
-                transform: scale(0.85); /* 85%に縮小 */
+                transform: scale(0.85); 
                 transform-origin: top left;
-                width: 117%; /* 縮小した分、幅を広げて右端まで使う */
+                width: 117%; 
             }
-            
-            /* 印刷時はドロップダウンの中身などを隠す */
             .dropdown-content { display: none; }
-            
-            /* テーブルの見た目調整 */
             th, td { padding: 2px !important; }
-            
-            /* 印刷時は固定解除 */
             .sticky { position: static !important; }
         }
         
@@ -81,20 +71,11 @@
         .animate-fadeIn {
             animation: fadeIn 0.2s ease-out forwards;
         }
-        
-        @keyframes bounce-slow {
-            0%, 100% { transform: translateY(-5%); }
-            50% { transform: translateY(5%); }
-        }
-        .animate-bounce-slow {
-            animation: bounce-slow 2s infinite;
-        }
     </style>
 </head>
 <body class="bg-amber-50 text-slate-800 font-sans flex flex-col min-h-screen text-xs md:text-sm">
     <div id="root" class="flex-grow flex flex-col h-screen"></div>
 
-    <!-- type="text/babel" に data-type="module" を追加してFirebase v10をインポート可能にする -->
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, increment, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -105,12 +86,12 @@
         // Firebaseの初期設定
         // ==========================================
         const firebaseConfig = {
-            apiKey: "AIzaSyBxriSl6JvV5CfJGEfDUTNXBs9RQJmI28U",
- 　         authDomain: "hkpointapp.firebaseapp.com",
-            projectId: "hkpointapp",
-            storageBucket: "hkpointapp.firebasestorage.app",
-            messagingSenderId: "696908221772",
-            appId: "1:696908221772:web:0ad30910bd6c7493bbd3e9"
+          apiKey: "AIzaSyBxriSl6JvV5CfJGEfDUTNXBs9RQJmI28U",
+          authDomain: "hkpointapp.firebaseapp.com",
+          projectId: "hkpointapp",
+          storageBucket: "hkpointapp.firebasestorage.app",
+          messagingSenderId: "696908221772",
+          appId: "1:696908221772:web:0ad30910bd6c7493bbd3e9"
         };
 
         const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
@@ -119,6 +100,22 @@
             const app = initializeApp(firebaseConfig);
             db = getFirestore(app);
         }
+
+        // --- ヘルパー関数: 誕生日判定 ---
+        const isBirthdayNear = (studentBirthdayStr, sundayDate) => {
+            if (!studentBirthdayStr) return false;
+            const birthDate = new Date(studentBirthdayStr);
+            const sunday = new Date(sundayDate);
+            const weekStart = new Date(sunday);
+            const weekEnd = new Date(sunday);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            const checkYears = [sunday.getFullYear(), sunday.getFullYear() + 1];
+            for (let y of checkYears) {
+                const bDayThisYear = new Date(y, birthDate.getMonth(), birthDate.getDate());
+                if (bDayThisYear >= weekStart && bDayThisYear <= weekEnd) return true;
+            }
+            return false;
+        };
 
         // --- アイコン定義 ---
         const ICONS = {
@@ -129,12 +126,9 @@
             Users: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>),
             CircleCheck: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>),
             X: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 18 12"/></svg>),
-            Clock: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>),
-            Trash2: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>),
             Calendar: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>),
             MinusCircle: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>),
-            Star: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>),
-            Gift: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect width="20" height="5" x="2" y="7"/><line x1="12" x2="12" y1="22" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>),
+            Trash2: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>),
             ChevronDown: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>),
             ArrowUp: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>),
             ArrowDown: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>),
@@ -151,65 +145,32 @@
             return IconComponent ? <IconComponent width={size} height={size} className={className} /> : null;
         };
 
-        // --- 学年複数選択コンポーネント ---
         const GradeSelector = ({ selectedGrades, onChange }) => {
             const [isOpen, setIsOpen] = useState(false);
             const dropdownRef = useRef(null);
-
             useEffect(() => {
-                const handleClickOutside = (event) => {
-                    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                        setIsOpen(false);
-                    }
-                };
+                const handleClickOutside = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false); };
                 document.addEventListener("mousedown", handleClickOutside);
                 return () => document.removeEventListener("mousedown", handleClickOutside);
             }, []);
-
-            const grades = [
-                { val: "1", label: "小1" },
-                { val: "2", label: "小2" },
-                { val: "3", label: "小3" },
-                { val: "4", label: "小4" },
-                { val: "5", label: "小5" },
-                { val: "6", label: "小6" },
-            ];
-
+            const grades = [{ val: "1", label: "小1" }, { val: "2", label: "小2" }, { val: "3", label: "小3" }, { val: "4", label: "小4" }, { val: "5", label: "小5" }, { val: "6", label: "小6" }];
             const toggleGrade = (val) => {
-                let newGrades;
-                if (selectedGrades.includes(val)) {
-                    newGrades = selectedGrades.filter(g => g !== val);
-                } else {
-                    newGrades = [...selectedGrades, val].sort();
-                }
+                let newGrades = selectedGrades.includes(val) ? selectedGrades.filter(g => g !== val) : [...selectedGrades, val].sort();
                 onChange(newGrades);
             };
-
-            const displayText = selectedGrades.length > 0 
-                ? selectedGrades.map(g => `小${g}`).join(", ") 
-                : "選択";
-
+            const displayText = selectedGrades.length > 0 ? selectedGrades.map(g => `小${g}`).join(", ") : "選択";
             return (
                 <div className="relative" ref={dropdownRef}>
-                    <button 
-                        className="border border-gray-300 rounded px-2 py-1 bg-white flex items-center gap-2 min-w-[80px] justify-between text-xs md:text-sm"
-                        onClick={() => setIsOpen(!isOpen)}
-                    >
+                    <button className="border border-gray-300 rounded px-2 py-1 bg-white flex items-center gap-2 min-w-[80px] justify-between text-xs md:text-sm" onClick={() => setIsOpen(!isOpen)}>
                         <span className="truncate max-w-[100px] md:max-w-[120px]">{displayText}</span>
                         <Icon name="ChevronDown" size={14} className="text-gray-500" />
                     </button>
-                    
                     {isOpen && (
-                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-40 p-2 dropdown-content">
+                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[70] w-40 p-2">
                             <div className="flex flex-col gap-1">
                                 {grades.map((grade) => (
                                     <label key={grade.val} className="flex items-center gap-2 p-1.5 hover:bg-amber-50 rounded cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={selectedGrades.includes(grade.val)}
-                                            onChange={() => toggleGrade(grade.val)}
-                                            className="accent-amber-500"
-                                        />
+                                        <input type="checkbox" checked={selectedGrades.includes(grade.val)} onChange={() => toggleGrade(grade.val)} className="accent-amber-500" />
                                         <span className="text-sm text-gray-700">{grade.label}</span>
                                     </label>
                                 ))}
@@ -220,141 +181,68 @@
             );
         };
 
-        // --- メインアプリ ---
         const App = () => {
             const today = new Date();
             const currentMonth = today.getMonth() + 1;
             const initialSemester = (currentMonth >= 4 && currentMonth <= 9) ? "first" : "second";
             const initialFiscalYear = (currentMonth >= 1 && currentMonth <= 3) ? today.getFullYear() - 1 : today.getFullYear();
 
-            // --- State (Firebase同期用) ---
-            const [classInfo, setClassInfo] = useState({
-                fiscalYear: initialFiscalYear,
-                semester: initialSemester,
-                grade: [],
-                gender: "",
-                teacher: ""
-            });
-
+            const [classInfo, setClassInfo] = useState({ fiscalYear: initialFiscalYear, semester: initialSemester, grade: [], gender: "", teacher: "" });
             const [students, setStudents] = useState([]);
             const [attendance, setAttendance] = useState({});
             const [bonusMonths, setBonusMonths] = useState({});
-
-            // 表示設定State
-            const [viewConfig, setViewConfig] = useState({
-                sort: 'manual', // manual, grade, points_desc, birthday
-                filterGrades: [], // empty = all
-                filterBirthMonth: 'all', // all, 1, 2...
-                showHidden: false // 非表示の生徒を表示するかどうか
-            });
-
+            const [viewConfig, setViewConfig] = useState({ sort: 'manual', filterGrades: [], filterBirthMonth: 'all', showHidden: false });
             const [isAddModalOpen, setIsAddModalOpen] = useState(false);
             const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
             const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-            const [isViewConfigModalOpen, setIsViewConfigModalOpen] = useState(false); // 表示設定モーダル
-            const [isDataModalOpen, setIsDataModalOpen] = useState(false); // データ管理モーダル
+            const [isViewConfigModalOpen, setIsViewConfigModalOpen] = useState(false);
+            const [isDataModalOpen, setIsDataModalOpen] = useState(false);
             const [studentToDelete, setStudentToDelete] = useState(null);
-            
-            // 編集用ステート
             const [editingStudent, setEditingStudent] = useState(null);
-
             const [newStudentName, setNewStudentName] = useState("");
             const [newStudentGrade, setNewStudentGrade] = useState("");
             const [newStudentBirthday, setNewStudentBirthday] = useState("");
             const [newStudentInitialPoints, setNewStudentInitialPoints] = useState(0);
-            const [newStudentIsHidden, setNewStudentIsHidden] = useState(false); // 非表示設定用
+            const [newStudentIsHidden, setNewStudentIsHidden] = useState(false);
 
-            // ==========================================
-            // Firebase リアルタイム同期
-            // ==========================================
             useEffect(() => {
                 if (!isConfigured) return;
-
-                // 初回アクセス時に設定ドキュメントがなければ作成
-                const initSettings = async () => {
-                    const refs = ['classInfo', 'attendance', 'bonusMonths'];
-                    for (const name of refs) {
-                        const docRef = doc(db, 'cs_settings', name);
-                        const snap = await getDoc(docRef);
-                        if (!snap.exists()) {
-                            await setDoc(docRef, {});
-                        }
-                    }
-                };
-                initSettings();
-
-                // データの購読
                 const unsubClass = onSnapshot(doc(db, 'cs_settings', 'classInfo'), doc => {
-                    if (doc.exists() && Object.keys(doc.data()).length > 0) {
+                    if (doc.exists()) {
                         const data = doc.data();
                         if (typeof data.grade === 'string') data.grade = data.grade ? [data.grade] : [];
-                        setClassInfo(data);
+                        setClassInfo(prev => ({...prev, ...data}));
                     }
                 });
-                const unsubAttendance = onSnapshot(doc(db, 'cs_settings', 'attendance'), doc => {
-                    if (doc.exists()) setAttendance(doc.data());
-                    else setAttendance({});
-                });
-                const unsubBonus = onSnapshot(doc(db, 'cs_settings', 'bonusMonths'), doc => {
-                    if (doc.exists()) setBonusMonths(doc.data());
-                    else setBonusMonths({});
-                });
+                const unsubAttendance = onSnapshot(doc(db, 'cs_settings', 'attendance'), doc => { if (doc.exists()) setAttendance(doc.data()); });
+                const unsubBonus = onSnapshot(doc(db, 'cs_settings', 'bonusMonths'), doc => { if (doc.exists()) setBonusMonths(doc.data()); });
                 const unsubStudents = onSnapshot(collection(db, 'students'), snapshot => {
                     const list = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-                    // 登録時の順序(sortIndex)で並び替え
                     list.sort((a, b) => (a.sortIndex || 0) - (b.sortIndex || 0));
                     setStudents(list);
                 });
-
                 return () => { unsubClass(); unsubAttendance(); unsubBonus(); unsubStudents(); };
             }, []);
 
-            // --- Logic ---
             const sundays = useMemo(() => {
                 const dates = [];
                 const year = parseInt(classInfo.fiscalYear);
-                let startMonth, startYear;
-                
-                if (classInfo.semester === "first") {
-                    startMonth = 3; 
-                    startYear = year;
-                } else {
-                    startMonth = 9; 
-                    startYear = year;
-                }
-
-                let current = new Date(startYear, startMonth, 1, 12, 0, 0);
-                
-                while (current.getDay() !== 0) {
-                    current.setDate(current.getDate() + 1);
-                }
-
-                const endDate = classInfo.semester === "first" 
-                    ? new Date(year, 8, 30, 12, 0, 0)
-                    : new Date(year + 1, 2, 31, 12, 0, 0);
-
-                while (current <= endDate) {
-                    dates.push(new Date(current));
-                    current.setDate(current.getDate() + 7);
-                }
+                let startMonth = classInfo.semester === "first" ? 3 : 9;
+                let current = new Date(year, startMonth, 1, 12, 0, 0);
+                while (current.getDay() !== 0) current.setDate(current.getDate() + 1);
+                const endDate = classInfo.semester === "first" ? new Date(year, 8, 30, 12, 0, 0) : new Date(year + 1, 2, 31, 12, 0, 0);
+                while (current <= endDate) { dates.push(new Date(current)); current.setDate(current.getDate() + 7); }
                 return dates;
             }, [classInfo.fiscalYear, classInfo.semester]);
 
             const sundaysByMonth = useMemo(() => {
                 const groups = [];
                 let currentGroup = null;
-
                 sundays.forEach(date => {
                     const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
-                    
                     if (!currentGroup || currentGroup.key !== monthKey) {
                         if (currentGroup) groups.push(currentGroup);
-                        currentGroup = {
-                            key: monthKey,
-                            year: date.getFullYear(),
-                            month: date.getMonth() + 1,
-                            dates: []
-                        };
+                        currentGroup = { key: monthKey, month: date.getMonth() + 1, dates: [] };
                     }
                     currentGroup.dates.push(date);
                 });
@@ -364,707 +252,325 @@
 
             const formatDateKey = (date) => date.toISOString().split('T')[0];
 
-            // --- Stats Calculation (Used for View/Sorting) ---
             const calculateStats = (student) => {
                 let presentCount = 0;
-                let absentCount = 0;
                 let totalPoints = student.initialPoints || 0;
-
                 sundays.forEach(date => {
-                    const key = `${student.id}_${formatDateKey(date)}`;
-                    const status = attendance[key];
-                    const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
-                    const isBonus = bonusMonths[monthKey];
-                    // 出席で+10P、3倍月間は+30P
-                    const pointsPerAttend = isBonus ? 30 : 10;
-
+                    const status = attendance[`${student.id}_${formatDateKey(date)}`];
                     if (status === 'present') {
                         presentCount++;
-                        totalPoints += pointsPerAttend;
+                        const isBonus = bonusMonths[`${date.getFullYear()}-${date.getMonth() + 1}`];
+                        totalPoints += (isBonus ? 30 : 10);
                     }
-                    if (status === 'absent') absentCount++;
                 });
-
-                // QRレジと連動したFirebaseの残高(HKP)を優先して取得
-                let hkp = student.pointBalance !== undefined ? student.pointBalance : totalPoints;
-
-                return { presentCount, absentCount, totalPoints, hkp };
+                return { presentCount, totalPoints, hkp: student.pointBalance !== undefined ? student.pointBalance : totalPoints };
             };
 
-            // --- Processed Students (Filter & Sort) ---
             const processedStudents = useMemo(() => {
-                // 1. Calculate Stats for sorting
-                let list = students.map(s => ({
-                    ...s,
-                    stats: calculateStats(s)
-                }));
-
-                // 2. Filter (Hidden)
-                if (!viewConfig.showHidden) {
-                    list = list.filter(s => !s.isHidden);
-                }
-
-                // 3. Filter (Grade)
-                if (viewConfig.filterGrades.length > 0) {
-                    list = list.filter(s => viewConfig.filterGrades.includes(s.grade));
-                }
-                // 4. Filter (Birth Month)
+                let list = students.map(s => ({ ...s, stats: calculateStats(s) }));
+                if (!viewConfig.showHidden) list = list.filter(s => !s.isHidden);
+                if (viewConfig.filterGrades.length > 0) list = list.filter(s => viewConfig.filterGrades.includes(s.grade));
                 if (viewConfig.filterBirthMonth !== 'all') {
-                    const targetMonth = parseInt(viewConfig.filterBirthMonth);
-                    list = list.filter(s => {
-                        if (!s.birthday) return false;
-                        const d = new Date(s.birthday);
-                        return (d.getMonth() + 1) === targetMonth;
-                    });
+                    const target = parseInt(viewConfig.filterBirthMonth);
+                    list = list.filter(s => s.birthday && (new Date(s.birthday).getMonth() + 1) === target);
                 }
-
-                // 5. Sort
-                if (viewConfig.sort === 'grade') {
-                    list.sort((a, b) => (a.grade || "9").localeCompare(b.grade || "9"));
-                } else if (viewConfig.sort === 'points_desc') {
-                    list.sort((a, b) => b.stats.hkp - a.stats.hkp);
-                } else if (viewConfig.sort === 'birthday') {
-                    list.sort((a, b) => {
-                        if (!a.birthday) return 1;
-                        if (!b.birthday) return -1;
-                        // Sort by Month-Day (ignore year)
-                        const dA = new Date(a.birthday);
-                        const dB = new Date(b.birthday);
-                        const mdA = (dA.getMonth() + 1) * 100 + dA.getDate();
-                        const mdB = (dB.getMonth() + 1) * 100 + dB.getDate();
-                        return mdA - mdB;
-                    });
-                }
-                // 'manual' uses original order (which is preserved since we mapped from students)
-
+                if (viewConfig.sort === 'grade') list.sort((a, b) => (a.grade || "9").localeCompare(b.grade || "9"));
+                else if (viewConfig.sort === 'points_desc') list.sort((a, b) => b.stats.hkp - a.stats.hkp);
+                else if (viewConfig.sort === 'birthday') list.sort((a, b) => {
+                    if (!a.birthday) return 1; if (!b.birthday) return -1;
+                    const dA = new Date(a.birthday), dB = new Date(b.birthday);
+                    return (dA.getMonth() + 1) * 100 + dA.getDate() - ((dB.getMonth() + 1) * 100 + dB.getDate());
+                });
                 return list;
             }, [students, attendance, bonusMonths, viewConfig, sundays]);
 
-
-            // ==========================================
-            // ハンドラ (Firebase更新用)
-            // ==========================================
-
             const handleClassInfoChange = (key, value) => {
                 const newInfo = { ...classInfo, [key]: value };
-                setClassInfo(newInfo); // Optimistic UI
-                if (isConfigured) {
-                    setDoc(doc(db, 'cs_settings', 'classInfo'), newInfo, { merge: true }).catch(console.error);
-                }
+                setClassInfo(newInfo);
+                if (isConfigured) setDoc(doc(db, 'cs_settings', 'classInfo'), newInfo, { merge: true });
             };
 
-            // 出席のトグルとポイント自動連動
             const toggleAttendance = async (studentId, dateKey) => {
-                if (!isConfigured) return alert("Firebaseが設定されていません。");
-
+                if (!isConfigured) return;
                 const key = `${studentId}_${dateKey}`;
                 const currentStatus = attendance[key];
-                let nextStatus;
-                
-                // 遅刻なし：出席 -> 欠席 -> CS休み -> 未定
-                if (currentStatus === 'present') nextStatus = 'absent';
-                else if (currentStatus === 'absent') nextStatus = 'holiday';
-                else if (currentStatus === 'holiday') nextStatus = null;
-                else nextStatus = 'present';
-
-                // --- ポイント連動の計算 ---
+                let nextStatus = currentStatus === 'present' ? 'absent' : (currentStatus === 'absent' ? 'holiday' : (currentStatus === 'holiday' ? null : 'present'));
                 const d = new Date(dateKey);
-                const monthKeyForBonus = `${d.getFullYear()}-${d.getMonth() + 1}`;
-                const isBonus = bonusMonths[monthKeyForBonus];
-                const pointsToAdd = isBonus ? 30 : 10;
-
-                let pointDiff = 0;
-                // 今回「出席」になったら加算
-                if (currentStatus !== 'present' && nextStatus === 'present') pointDiff = pointsToAdd;
-                // 「出席」を取り消したら減算
-                else if (currentStatus === 'present' && nextStatus !== 'present') pointDiff = -pointsToAdd;
-
+                const isBonus = bonusMonths[`${d.getFullYear()}-${d.getMonth() + 1}`];
+                const points = isBonus ? 30 : 10;
+                let diff = (currentStatus !== 'present' && nextStatus === 'present') ? points : ((currentStatus === 'present' && nextStatus !== 'present') ? -points : 0);
                 try {
                     const batch = writeBatch(db);
-                    
-                    // 出欠記録の更新
-                    if (nextStatus === null) {
-                        batch.update(doc(db, 'cs_settings', 'attendance'), { [key]: deleteField() });
-                    } else {
-                        batch.update(doc(db, 'cs_settings', 'attendance'), { [key]: nextStatus });
-                    }
-                    
-                    // 生徒のポイント残高を更新
-                    if (pointDiff !== 0) {
-                        batch.update(doc(db, 'students', String(studentId)), { pointBalance: increment(pointDiff) });
-                    }
-                    
+                    if (nextStatus === null) batch.update(doc(db, 'cs_settings', 'attendance'), { [key]: deleteField() });
+                    else batch.update(doc(db, 'cs_settings', 'attendance'), { [key]: nextStatus });
+                    if (diff !== 0) batch.update(doc(db, 'students', String(studentId)), { pointBalance: increment(diff) });
                     await batch.commit();
-                } catch (e) {
-                    console.error("更新エラー", e);
-                }
+                } catch (e) { console.error(e); }
             };
 
             const toggleBonusMonth = async (monthKey) => {
                 if (!isConfigured) return;
-                const isCurrentlyBonus = !!bonusMonths[monthKey];
+                const isNowBonus = !!bonusMonths[monthKey];
+                const adjustment = isNowBonus ? -20 : 20; // 30 -> 10 or 10 -> 30
+                const [y, m] = monthKey.split('-').map(Number);
+                const monthSundays = sundays.filter(d => d.getFullYear() === y && d.getMonth() + 1 === m).map(formatDateKey);
                 try {
-                    await updateDoc(doc(db, 'cs_settings', 'bonusMonths'), {
-                        [monthKey]: isCurrentlyBonus ? deleteField() : true
+                    const batch = writeBatch(db);
+                    batch.set(doc(db, 'cs_settings', 'bonusMonths'), { [monthKey]: isNowBonus ? deleteField() : true }, { merge: true });
+                    students.forEach(student => {
+                        let presentCountInMonth = 0;
+                        monthSundays.forEach(dateKey => { if (attendance[`${student.id}_${dateKey}`] === 'present') presentCountInMonth++; });
+                        if (presentCountInMonth > 0) {
+                            batch.update(doc(db, 'students', String(student.id)), { pointBalance: increment(presentCountInMonth * adjustment) });
+                        }
                     });
-                } catch(e) {
-                    await setDoc(doc(db, 'cs_settings', 'bonusMonths'), {
-                        [monthKey]: !isCurrentlyBonus
-                    }, { merge: true });
-                }
-            };
-
-            const updateStudentInitialPoints = async (id, points) => {
-                if (!isConfigured) return;
-                const val = parseInt(points) || 0;
-                try {
-                    await updateDoc(doc(db, 'students', String(id)), { initialPoints: val });
-                } catch(e) { console.error(e); }
-            };
-
-            const updateStudentMemo = async (id, text) => {
-                if (!isConfigured) return;
-                try {
-                    await updateDoc(doc(db, 'students', String(id)), { memo: text });
-                } catch(e) { console.error(e); }
+                    await batch.commit();
+                } catch (e) { console.error(e); }
             };
 
             const handleSaveStudent = async (e) => {
                 e.preventDefault();
-                if (!isConfigured) return alert("Firebaseが設定されていません。");
                 if (!newStudentName.trim()) return;
-
                 try {
                     if (editingStudent) {
-                        await updateDoc(doc(db, 'students', String(editingStudent.id)), {
-                            name: newStudentName,
-                            grade: newStudentGrade,
-                            birthday: newStudentBirthday,
-                            initialPoints: parseInt(newStudentInitialPoints) || 0,
-                            isHidden: newStudentIsHidden
-                        });
+                        await updateDoc(doc(db, 'students', String(editingStudent.id)), { name: newStudentName, grade: newStudentGrade, birthday: newStudentBirthday, initialPoints: parseInt(newStudentInitialPoints) || 0, isHidden: newStudentIsHidden });
                     } else {
-                        // 新規作成時：IDを自動採番して文字列にする (これがQRコード用のIDになります)
-                        const currentIds = students.map(s => parseInt(s.id, 10)).filter(id => !isNaN(id));
-                        const maxId = currentIds.length > 0 ? Math.max(...currentIds) : 0;
-                        const newId = String(maxId + 1);
-                        
-                        await setDoc(doc(db, 'students', newId), {
-                            name: newStudentName,
-                            grade: newStudentGrade,
-                            birthday: newStudentBirthday,
-                            initialPoints: parseInt(newStudentInitialPoints) || 0,
-                            pointBalance: parseInt(newStudentInitialPoints) || 0,
-                            memo: "",
-                            isHidden: newStudentIsHidden,
-                            sortIndex: students.length
-                        });
+                        const ids = students.map(s => parseInt(s.id)).filter(id => !isNaN(id));
+                        const newId = String((ids.length > 0 ? Math.max(...ids) : 0) + 1);
+                        await setDoc(doc(db, 'students', newId), { name: newStudentName, grade: newStudentGrade, birthday: newStudentBirthday, initialPoints: parseInt(newStudentInitialPoints) || 0, pointBalance: parseInt(newStudentInitialPoints) || 0, memo: "", isHidden: newStudentIsHidden, sortIndex: students.length });
                     }
                     closeModal();
-                } catch (e) {
-                    console.error("保存エラー", e);
-                    alert("保存に失敗しました。");
-                }
-            };
-
-            const openAddModal = () => {
-                setEditingStudent(null);
-                setNewStudentName("");
-                setNewStudentGrade("");
-                setNewStudentBirthday("");
-                setNewStudentInitialPoints(0);
-                setNewStudentIsHidden(false);
-                setIsAddModalOpen(true);
-            };
-
-            const openEditModal = (student) => {
-                setEditingStudent(student);
-                setNewStudentName(student.name);
-                setNewStudentGrade(student.grade || "");
-                setNewStudentBirthday(student.birthday || "");
-                setNewStudentInitialPoints(student.initialPoints || 0);
-                setNewStudentIsHidden(!!student.isHidden);
-                setIsAddModalOpen(true);
-            };
-
-            const closeModal = () => {
-                setIsAddModalOpen(false);
-                setEditingStudent(null);
-                setNewStudentName("");
-                setNewStudentGrade("");
-                setNewStudentBirthday("");
-                setNewStudentInitialPoints(0);
-                setNewStudentIsHidden(false);
-            };
-
-            const executeDeleteStudent = async () => {
-                if (!isConfigured || !studentToDelete) return;
-                try {
-                    await deleteDoc(doc(db, 'students', String(studentToDelete.id)));
-                    setIsDeleteModalOpen(false);
-                    setStudentToDelete(null);
                 } catch (e) { console.error(e); }
             };
-            
-            const moveStudent = async (index, direction) => {
-                if (!isConfigured) return;
-                const newStudents = [...students];
-                if (direction === 'up' && index > 0) {
-                    [newStudents[index], newStudents[index - 1]] = [newStudents[index - 1], newStudents[index]];
-                } else if (direction === 'down' && index < newStudents.length - 1) {
-                    [newStudents[index], newStudents[index + 1]] = [newStudents[index + 1], newStudents[index]];
-                }
-                
-                // Firestoreのバッチ更新
+
+            const openAddModal = () => { setEditingStudent(null); setNewStudentName(""); setNewStudentGrade(""); setNewStudentBirthday(""); setNewStudentInitialPoints(0); setNewStudentIsHidden(false); setIsAddModalOpen(true); };
+            const openEditModal = (s) => { setEditingStudent(s); setNewStudentName(s.name); setNewStudentGrade(s.grade || ""); setNewStudentBirthday(s.birthday || ""); setNewStudentInitialPoints(s.initialPoints || 0); setNewStudentIsHidden(!!s.isHidden); setIsAddModalOpen(true); };
+            const closeModal = () => setIsAddModalOpen(false);
+            const executeDeleteStudent = async () => { if (studentToDelete) { await deleteDoc(doc(db, 'students', String(studentToDelete.id))); setIsDeleteModalOpen(false); } };
+            const updateStudentInitialPoints = (id, v) => updateDoc(doc(db, 'students', String(id)), { initialPoints: parseInt(v) || 0 });
+            const updateStudentMemo = (id, t) => updateDoc(doc(db, 'students', String(id)), { memo: t });
+            const moveStudent = async (idx, dir) => {
+                const list = [...students];
+                if (dir === 'up' && idx > 0) [list[idx], list[idx-1]] = [list[idx-1], list[idx]];
+                else if (dir === 'down' && idx < list.length - 1) [list[idx], list[idx+1]] = [list[idx+1], list[idx]];
                 const batch = writeBatch(db);
-                newStudents.forEach((s, i) => {
-                    batch.update(doc(db, 'students', String(s.id)), { sortIndex: i });
-                });
+                list.forEach((s, i) => batch.update(doc(db, 'students', String(s.id)), { sortIndex: i }));
                 await batch.commit();
             };
 
-            // データ保存・復元 (Firestore対応版)
-            const handleExportData = () => {
-                const dataToSave = {
-                    app: "cs-attendance",
-                    version: "2.0",
-                    date: new Date().toISOString(),
-                    classInfo,
-                    students,
-                    attendance,
-                    bonusMonths
-                };
-                const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = `cs_backup_${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            };
-
-            const handleImportData = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                if (!confirm("現在のデータはすべて上書きされます。よろしいですか？")) {
-                    e.target.value = null; // リセット
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    try {
-                        const data = JSON.parse(ev.target.result);
-                        if (data.app !== "cs-attendance") {
-                            alert("このアプリのバックアップファイルではありません。");
-                            return;
-                        }
-                        
-                        // データの適用 (Firestoreへ)
-                        const batch = writeBatch(db);
-                        if(data.classInfo) batch.set(doc(db, 'cs_settings', 'classInfo'), data.classInfo);
-                        if(data.attendance) batch.set(doc(db, 'cs_settings', 'attendance'), data.attendance);
-                        if(data.bonusMonths) batch.set(doc(db, 'cs_settings', 'bonusMonths'), data.bonusMonths);
-                        
-                        if(data.students) {
-                            data.students.forEach(s => {
-                                batch.set(doc(db, 'students', String(s.id)), s);
-                            });
-                        }
-                        await batch.commit();
-                        
-                        alert("データを復元しました！");
-                        setIsDataModalOpen(false);
-                    } catch (err) {
-                        console.error(err);
-                        alert("ファイルの読み込みに失敗しました。データが破損している可能性があります。");
-                    }
-                };
-                reader.readAsText(file);
-                e.target.value = null;
-            };
-
             const exportCSV = () => {
-                let csvContent = "data:text/csv;charset=utf-8,";
-                const dateHeaders = sundays.map(d => `${d.getMonth()+1}/${d.getDate()}`).join(",");
-                csvContent += `名前,会員ID,学年,メモ,初期P,累計P,出席数,HKP,欠席数,${dateHeaders}\n`;
-
+                let csv = "名前,会員ID,学年,メモ,初期P,累計P,出席数,HKP,欠席数," + sundays.map(d => `${d.getMonth()+1}/${d.getDate()}`).join(",") + "\n";
                 students.forEach(s => {
                     const stats = calculateStats(s);
-                    const row = [
-                        s.name,
-                        s.id,
-                        s.grade ? `小${s.grade}` : "",
-                        s.memo,
-                        s.initialPoints,
-                        stats.totalPoints,
-                        stats.presentCount,
-                        stats.hkp,
-                        stats.absentCount,
-                        ...sundays.map(d => {
-                            const key = `${s.id}_${formatDateKey(d)}`;
-                            const status = attendance[key];
-                            return status === 'present' ? '出席' : (status === 'absent' ? '欠席' : (status === 'holiday' ? 'CS休み' : '-'));
-                        })
-                    ];
-                    csvContent += row.join(",") + "\n";
+                    csv += `${s.name},${s.id},${s.grade ? '小'+s.grade : ""},${s.memo},${s.initialPoints},${stats.totalPoints},${stats.presentCount},${stats.hkp},0,` + sundays.map(d => {
+                        const st = attendance[`${s.id}_${formatDateKey(d)}`];
+                        return st === 'present' ? '出席' : (st === 'absent' ? '欠席' : (st === 'holiday' ? 'CS休み' : '-'));
+                    }).join(",") + "\n";
                 });
-
-                const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
-                const semesterName = classInfo.semester === 'first' ? '上半期' : '下半期';
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `出席簿_${classInfo.fiscalYear}_${semesterName}.csv`);
-                document.body.appendChild(link);
+                link.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+                link.download = `出席簿_${classInfo.fiscalYear}_${classInfo.semester === 'first' ? '上半期' : '下半期'}.csv`;
                 link.click();
             };
 
-            const openPrintModal = () => {
-                setIsPrintModalOpen(true);
-            };
-
-            const executePrint = (targetSemester) => {
-                if (classInfo.semester !== targetSemester) {
-                    handleClassInfoChange('semester', targetSemester);
-                    setTimeout(() => {
-                        window.print();
-                    }, 500);
-                } else {
-                    window.print();
-                }
-                setIsPrintModalOpen(false);
-            };
-
-            // 次の出席機会におけるボーナスポイント取得
-            const getNextBonusInfo = (studentId) => {
-                const nextSunday = sundays.find(d => {
-                    const key = `${studentId}_${formatDateKey(d)}`;
-                    return !attendance[key];
-                });
-                const targetDate = nextSunday || sundays[sundays.length - 1];
-                const monthKey = `${targetDate.getFullYear()}-${targetDate.getMonth() + 1}`;
-                return bonusMonths[monthKey] ? 30 : 10;
-            };
-
-            const isGiftNear = (currentPoints, studentId) => {
-                const nextPoints = getNextBonusInfo(studentId);
-                if (currentPoints > 0 && currentPoints % 100 === 0) return false;
-                const currentHundred = Math.floor(currentPoints / 100);
-                const nextHundred = Math.floor((currentPoints + nextPoints) / 100);
-                return nextHundred > currentHundred;
-            };
-
-            // スタイル
-            const getCellColor = (status) => {
-                switch(status) {
-                    case 'present': return 'bg-green-100 text-green-700 hover:bg-green-200 border-green-300';
-                    case 'absent': return 'bg-red-100 text-red-700 hover:bg-red-200 border-red-300';
-                    case 'holiday': return 'bg-gray-200 text-gray-500 hover:bg-gray-300 border-gray-300';
-                    default: return 'bg-white hover:bg-gray-50 border-gray-200';
-                }
-            };
-
-            const getStatusIcon = (status) => {
-                switch(status) {
-                    case 'present': return 'CircleCheck';
-                    case 'absent': return 'X';
-                    case 'holiday': return 'MinusCircle';
-                    default: return '';
-                }
-            };
-
-            const isBirthdayNear = (studentBirthdayStr, sundayDate) => {
-                if (!studentBirthdayStr) return false;
-                const birthDate = new Date(studentBirthdayStr);
-                const sunday = new Date(sundayDate);
-                const weekStart = new Date(sunday);
-                const weekEnd = new Date(sunday);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                const checkYears = [sunday.getFullYear(), sunday.getFullYear() + 1];
-                for (let y of checkYears) {
-                    const bDayThisYear = new Date(y, birthDate.getMonth(), birthDate.getDate());
-                    if (bDayThisYear >= weekStart && bDayThisYear <= weekEnd) return true;
-                }
-                return false;
-            };
+            const executePrint = (sem) => { handleClassInfoChange('semester', sem); setTimeout(() => window.print(), 500); setIsPrintModalOpen(false); };
+            const getCellColor = (st) => st === 'present' ? 'bg-green-100 text-green-700 border-green-300' : (st === 'absent' ? 'bg-red-100 text-red-700 border-red-300' : (st === 'holiday' ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-white border-gray-200'));
+            const getStatusIcon = (st) => st === 'present' ? 'CircleCheck' : (st === 'absent' ? 'X' : (st === 'holiday' ? 'MinusCircle' : ''));
 
             return (
                 <div className="flex flex-col h-full min-h-screen">
-                    {/* Firebase未設定警告 */}
-                    {!isConfigured && (
-                        <div className="bg-red-100 text-red-700 px-4 py-2 text-center text-sm font-bold no-print shadow-sm">
-                            Firebaseが設定されていません。コード内の firebaseConfig をご自身のものに書き換えてください。
-                        </div>
-                    )}
-
-                    {/* ヘッダー */}
                     <header className="bg-white shadow-sm border-b border-amber-200 sticky top-0 z-[60] no-print">
-                        <div className="max-w-full mx-auto px-4 py-2 md:py-3 flex flex-col md:flex-row items-center justify-between gap-3 border-b border-gray-100">
-                            <div className="flex items-center gap-2">
-                                <div className="p-1.5 md:p-2 bg-amber-100 rounded-lg text-amber-600">
-                                    <Icon name="Church" size={20} className="md:w-6 md:h-6" />
-                                </div>
-                                <h1 className="text-lg md:text-xl font-bold text-gray-800">教会学校 出席フォロー表</h1>
-                            </div>
-
-                            <div className="flex flex-wrap items-center justify-center gap-2 bg-gray-50 p-1 md:p-1.5 rounded-lg border border-gray-200">
-                                <div className="flex items-center">
-                                    <input 
-                                        type="number" 
-                                        value={classInfo.fiscalYear}
-                                        onChange={(e) => handleClassInfoChange('fiscalYear', e.target.value)}
-                                        className="w-16 md:w-20 p-1 text-center bg-white border border-gray-300 rounded-l-md focus:ring-amber-500 focus:border-amber-500 text-xs md:text-sm"
-                                    />
-                                    <span className="bg-gray-100 border border-l-0 border-gray-300 rounded-r-md px-1.5 md:px-2 py-1 text-xs md:text-sm font-medium">年度</span>
-                                </div>
+                        <div className="max-w-full mx-auto px-4 py-2 md:py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+                            <div className="flex items-center gap-2"><div className="p-1.5 md:p-2 bg-amber-100 rounded-lg text-amber-600"><Icon name="Church" /></div><h1 className="text-lg md:text-xl font-bold text-gray-800">教会学校 出席フォロー表</h1></div>
+                            <div className="flex items-center gap-2 bg-gray-50 p-1 md:p-1.5 rounded-lg border border-gray-200">
+                                <input type="number" value={classInfo.fiscalYear} onChange={(e) => handleClassInfoChange('fiscalYear', e.target.value)} className="w-16 md:w-20 p-1 text-center bg-white border border-gray-300 rounded-md focus:ring-amber-500 text-xs md:text-sm" />
                                 <div className="flex bg-white rounded-md border border-gray-300 overflow-hidden">
-                                    <button 
-                                        onClick={() => handleClassInfoChange('semester', 'first')}
-                                        className={`px-2 py-1 md:px-3 text-xs md:text-sm font-medium transition ${classInfo.semester === 'first' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
-                                    >
-                                        上半期(4-9月)
-                                    </button>
-                                    <div className="w-px bg-gray-300"></div>
-                                    <button 
-                                        onClick={() => handleClassInfoChange('semester', 'second')}
-                                        className={`px-2 py-1 md:px-3 text-xs md:text-sm font-medium transition ${classInfo.semester === 'second' ? 'bg-amber-100 text-amber-700' : 'hover:bg-gray-50'}`}
-                                    >
-                                        下半期(10-3月)
-                                    </button>
+                                    <button onClick={() => handleClassInfoChange('semester', 'first')} className={`px-2 py-1 md:px-3 text-xs md:text-sm ${classInfo.semester === 'first' ? 'bg-amber-100 text-amber-700 font-bold' : ''}`}>上半期</button>
+                                    <button onClick={() => handleClassInfoChange('semester', 'second')} className={`px-2 py-1 md:px-3 text-xs md:text-sm ${classInfo.semester === 'second' ? 'bg-amber-100 text-amber-700 font-bold' : ''}`}>下半期</button>
                                 </div>
                             </div>
-
-                            <div className="flex gap-1.5 md:gap-2 no-print overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
-                                <button onClick={openAddModal} className="flex-shrink-0 flex items-center gap-1 md:gap-2 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 md:px-3 md:py-2 rounded-lg font-medium transition shadow-sm text-xs md:text-sm"><Icon name="UserPlus" size={14} /><span>生徒追加</span></button>
-                                <button onClick={openPrintModal} className="flex-shrink-0 flex items-center gap-1 md:gap-2 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1.5 md:px-3 md:py-2 rounded-lg font-medium transition shadow-sm text-xs md:text-sm"><Icon name="Printer" size={14} /><span>印刷</span></button>
-                                <button onClick={exportCSV} className="flex-shrink-0 flex items-center gap-1 md:gap-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-2 py-1.5 md:px-3 md:py-2 rounded-lg font-medium transition shadow-sm text-xs md:text-sm" title="CSV出力"><Icon name="Download" size={14} /><span>出力</span></button>
-                                <div className="flex-shrink-0 flex bg-white border border-gray-300 rounded-lg overflow-hidden">
-                                    <button onClick={() => setIsViewConfigModalOpen(true)} className={`flex items-center gap-1 px-2 py-1.5 md:px-3 md:py-2 font-medium transition shadow-sm text-xs md:text-sm border-r border-gray-200 ${viewConfig.sort !== 'manual' || viewConfig.filterGrades.length > 0 || viewConfig.filterBirthMonth !== 'all' || viewConfig.showHidden ? 'bg-amber-100 text-amber-700' : 'bg-white text-gray-700 hover:bg-gray-50'}`} title="リスト表示設定"><Icon name="ListFilter" size={14} /></button>
-                                    <button onClick={() => setIsDataModalOpen(true)} className="flex items-center gap-1 px-2 py-1.5 md:px-3 md:py-2 bg-white text-gray-700 hover:bg-gray-50 font-medium transition shadow-sm text-xs md:text-sm" title="データ管理"><Icon name="Database" size={14} /></button>
-                                </div>
+                            <div className="flex gap-2">
+                                <button onClick={openAddModal} className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="UserPlus" size={14} /><span>生徒追加</span></button>
+                                <button onClick={() => setIsPrintModalOpen(true)} className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="Printer" size={14} /><span>印刷</span></button>
+                                <button onClick={exportCSV} className="flex items-center gap-1 bg-white border border-gray-300 px-2 py-1.5 rounded-lg text-gray-700 text-xs md:text-sm"><Icon name="Download" size={14} /><span>出力</span></button>
+                                <button onClick={() => setIsViewConfigModalOpen(true)} className="bg-white border border-gray-300 p-2 rounded-lg"><Icon name="ListFilter" size={14} /></button>
                             </div>
+                        </div>
+                        <div className="px-4 py-2 bg-amber-50/50 flex flex-wrap gap-4 text-xs md:text-sm items-center border-t border-amber-100">
+                            <div className="flex items-center gap-2"><span className="font-bold text-gray-600">学年:</span><GradeSelector selectedGrades={classInfo.grade} onChange={(gs) => handleClassInfoChange('grade', gs)} /></div>
+                            <div className="flex items-center gap-2"><span className="font-bold text-gray-600">性別:</span>{['male','female'].map(g => <label key={g} className="flex items-center gap-1"><input type="radio" name="gen" checked={classInfo.gender === g} onChange={() => handleClassInfoChange('gender', g)} />{g === 'male' ? '男' : '女'}</label>)}</div>
+                            <div className="flex items-center gap-2"><span className="font-bold text-gray-600">担当者:</span><input type="text" value={classInfo.teacher} onChange={(e) => handleClassInfoChange('teacher', e.target.value)} className="border border-gray-300 rounded px-2 py-1 bg-white w-32" /></div>
                         </div>
                     </header>
 
-                    {/* メインテーブル */}
                     <main className="flex-grow overflow-hidden relative print-scale-wrapper">
                         <div className="absolute inset-0 overflow-auto">
                             <div className="min-w-max p-2 md:p-4">
                                 <div className="bg-white rounded-xl shadow border border-gray-200 print-border">
                                     <table className="border-collapse text-left w-full">
-                                        <thead>
-                                            {/* ヘッダー1行目 */}
+                                        <thead className="sticky top-0 z-50">
                                             <tr className="bg-gray-100 text-gray-700 text-xs md:text-sm border-b border-gray-200">
-                                                <th colSpan="4" className="p-1 md:p-2 border-r sticky left-0 z-50 bg-gray-100 print:static"></th>
+                                                <th colSpan="4" className="p-1 border-r sticky left-0 z-50 bg-gray-100 print:static"></th>
                                                 {sundaysByMonth.map(group => (
-                                                    <th key={group.key} colSpan={group.dates.length} className="p-1 md:p-2 border-r text-center border-gray-300 sticky top-0 z-50 bg-gray-100">
-                                                        <div className="flex flex-col items-center justify-center gap-0.5 md:gap-1">
-                                                            <span className="font-bold text-base md:text-lg">{group.month}月</span>
-                                                            <label className={`no-print flex items-center gap-1 text-[10px] md:text-xs px-1.5 py-0.5 rounded cursor-pointer select-none transition ${bonusMonths[group.key] ? 'bg-yellow-100 text-yellow-700 font-bold ring-1 ring-yellow-400' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
+                                                    <th key={group.key} colSpan={group.dates.length} className="p-1 border-r text-center border-gray-300 bg-gray-100">
+                                                        <div className="flex flex-col items-center py-1">
+                                                            <span className="font-bold text-base">{group.month}月</span>
+                                                            <label className={`no-print px-1.5 py-0.5 rounded cursor-pointer transition ${bonusMonths[group.key] ? 'bg-yellow-100 text-yellow-700 font-bold ring-1 ring-yellow-400' : 'bg-gray-200 text-gray-500 text-[10px]'}`}>
                                                                 <input type="checkbox" checked={!!bonusMonths[group.key]} onChange={() => toggleBonusMonth(group.key)} className="hidden" />
-                                                                <span className="whitespace-nowrap">{bonusMonths[group.key] ? '★3倍月間' : '3倍月間'}</span>
+                                                                <span>{bonusMonths[group.key] ? '★3倍月間' : '3倍月間'}</span>
                                                             </label>
-                                                            {bonusMonths[group.key] && <span className="hidden print:inline text-xs font-bold border border-black px-1">3倍月間</span>}
+                                                            {bonusMonths[group.key] && <span className="hidden print:inline text-[8pt] font-bold border border-black px-1 mt-1">3倍月間</span>}
                                                         </div>
                                                     </th>
                                                 ))}
-                                                <th colSpan="2" className="border-l sticky top-0 z-50 bg-gray-100"></th>
+                                                <th colSpan="2" className="bg-gray-100"></th>
                                             </tr>
-
-                                            {/* ヘッダー2行目 */}
-                                            <tr className="bg-gray-50 text-gray-600 text-xs md:text-sm border-b border-gray-200">
-                                                <th className="p-2 md:p-3 w-10 md:w-16 sticky left-0 z-50 text-center font-medium border-r print:static bg-gray-50">順</th>
-                                                <th className="p-2 md:p-3 w-32 md:w-44 sticky left-10 md:left-16 z-50 font-medium shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r print:static print:shadow-none bg-gray-50 text-center">名前 [会員ID]</th>
-                                                <th className="p-2 md:p-3 w-12 md:w-16 text-center font-medium border-r text-[10px] md:text-xs sticky left-[10.5rem] md:left-[15.5rem] z-50 print:static bg-gray-50">出席数</th>
-                                                <th className="p-2 md:p-3 w-14 md:w-20 text-center font-medium border-r text-[10px] md:text-xs sticky left-[13.5rem] md:left-[19.5rem] z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:static print:shadow-none bg-gray-50">HKP</th>
-                                                
-                                                {sundaysByMonth.map(group => (
-                                                    group.dates.map((date, i) => {
-                                                        const isMonthStart = i === 0;
-                                                        const borderClass = isMonthStart ? "border-l-2 border-l-gray-300" : "border-l border-gray-100";
-                                                        const isBonus = bonusMonths[group.key];
-                                                        return (
-                                                            <th key={date.toISOString()} className={`p-1 min-w-[28px] md:min-w-[36px] text-center font-medium sticky top-8 z-40 bg-gray-50 ${borderClass} ${isBonus ? 'bg-yellow-50/50' : ''}`}>
-                                                                <span className={`text-xs md:text-sm font-bold ${isBirthdayNear ? 'text-gray-700' : 'text-amber-600'}`}>{date.getDate()}</span>
-                                                            </th>
-                                                        );
-                                                    })
-                                                ))}
-                                                <th className="p-2 md:p-3 min-w-[100px] md:min-w-[150px] font-medium text-gray-400 border-l sticky top-8 z-40 bg-gray-50">メモ</th>
-                                                <th className="p-2 md:p-3 w-8 md:w-10 text-center no-print sticky top-8 z-40 bg-gray-50"></th>
+                                            <tr className="bg-gray-50 text-gray-600 text-[10px] md:text-xs border-b border-gray-200">
+                                                <th className="p-2 w-10 md:w-12 sticky left-0 z-50 bg-gray-50 text-center border-r print:static">順</th>
+                                                <th className="p-2 w-36 md:w-48 sticky left-10 md:left-12 z-50 bg-gray-50 border-r print:static text-center">名前 [会員ID]</th>
+                                                <th className="p-2 w-12 md:w-16 text-center border-r sticky left-[11.5rem] md:left-[15rem] z-50 bg-gray-50 print:static">出席数</th>
+                                                <th className="p-2 w-14 md:w-20 text-center border-r sticky left-[14.5rem] md:left-[19rem] z-50 bg-gray-50 print:static shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:shadow-none">HKP</th>
+                                                {sundaysByMonth.map(g => g.dates.map((d, i) => (
+                                                    <th key={d.toISOString()} className={`p-1 min-w-[28px] md:min-w-[36px] text-center font-medium ${i === 0 ? "border-l-2 border-l-gray-300" : "border-l border-gray-100"} ${bonusMonths[g.key] ? 'bg-yellow-50/50' : ''}`}>
+                                                        <span className="text-xs font-bold text-amber-600">{d.getDate()}</span>
+                                                    </th>
+                                                )))}
+                                                <th className="p-2 min-w-[100px] border-l bg-gray-50">メモ</th>
+                                                <th className="p-2 w-8 no-print bg-gray-50"></th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                            {students.length === 0 ? (
-                                                <tr><td colSpan={sundays.length + 6} className="p-12 text-center text-gray-400"><div className="flex flex-col items-center gap-2"><Icon name="Users" size={48} className="text-gray-300" /><p>生徒を登録してください。</p></div></td></tr>
-                                            ) : (
-                                                processedStudents.map((student, idx) => {
-                                                    const stats = calculateStats(student);
-                                                    // プレゼント判定は元の合計P(累計)を使用
-                                                    const nearGift = isGiftNear(stats.totalPoints, student.id);
-                                                    const originalIndex = students.findIndex(s => s.id === student.id);
-
-                                                    return (
-                                                        <tr key={student.id} className={`hover:bg-gray-50 transition group ${student.isHidden ? 'bg-gray-100' : ''}`}>
-                                                            <td className={`p-1 text-center text-gray-400 sticky left-0 z-20 border-r print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white group-hover:bg-gray-50'}`}>
-                                                                <div className="flex flex-col items-center justify-center h-full gap-1 no-print">
-                                                                    {(viewConfig.sort === 'manual' && viewConfig.filterGrades.length === 0 && viewConfig.filterBirthMonth === 'all') ? (
-                                                                        <>
-                                                                            <button onClick={() => moveStudent(originalIndex, 'up')} disabled={originalIndex === 0} className="hover:text-amber-500 disabled:opacity-30"><Icon name="ArrowUp" size={14} className="w-3 h-3 md:w-4 md:h-4" /></button>
-                                                                            <span className="text-[10px] md:text-xs font-mono">{idx + 1}</span>
-                                                                            <button onClick={() => moveStudent(originalIndex, 'down')} disabled={originalIndex === students.length - 1} className="hover:text-amber-500 disabled:opacity-30"><Icon name="ArrowDown" size={14} className="w-3 h-3 md:w-4 md:h-4" /></button>
-                                                                        </>
-                                                                    ) : (
-                                                                        <span className="text-xs font-mono text-gray-300">{idx + 1}</span>
-                                                                    )}
+                                            {processedStudents.map((student, idx) => {
+                                                const stats = student.stats;
+                                                const originalIdx = students.findIndex(s => s.id === student.id);
+                                                return (
+                                                    <tr key={student.id} className={`hover:bg-gray-50 transition group ${student.isHidden ? 'bg-gray-100' : ''}`}>
+                                                        <td className={`p-1 text-center text-gray-400 sticky left-0 z-20 border-r print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white'}`}>
+                                                            <div className="flex flex-col items-center gap-1 no-print">
+                                                                {viewConfig.sort === 'manual' && (
+                                                                    <>
+                                                                        <button onClick={() => moveStudent(originalIdx, 'up')} disabled={originalIdx === 0} className="hover:text-amber-500 disabled:opacity-20"><Icon name="ArrowUp" size={12} /></button>
+                                                                        <span className="font-mono text-[10px]">{idx + 1}</span>
+                                                                        <button onClick={() => moveStudent(originalIdx, 'down')} disabled={originalIdx === students.length - 1} className="hover:text-amber-500 disabled:opacity-20"><Icon name="ArrowDown" size={12} /></button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                            <span className="hidden print:block">{idx+1}</span>
+                                                        </td>
+                                                        <td className={`p-2 sticky left-10 md:left-12 z-20 border-r print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:shadow-none'}`}>
+                                                            <div className="flex flex-col">
+                                                                <div className="font-bold flex items-center gap-1 cursor-pointer hover:text-amber-600" onClick={() => openEditModal(student)}>
+                                                                    <span className="truncate max-w-[80px] md:max-w-none text-xs md:text-sm">{student.name}</span>
+                                                                    <span className="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">[{student.id}]</span>
+                                                                    {student.isHidden && <Icon name="EyeOff" size={12} className="text-gray-400" />}
+                                                                    {student.grade && <span className="text-[10px] text-slate-500 bg-slate-100 px-1 rounded whitespace-nowrap">小{student.grade}</span>}
                                                                 </div>
-                                                                <span className="hidden print:block">{idx + 1}</span>
-                                                            </td>
-                                                            <td className={`p-2 md:p-3 sticky left-10 md:left-16 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r print:static print:shadow-none ${student.isHidden ? 'bg-gray-100' : 'bg-white group-hover:bg-gray-50'}`}>
-                                                                <div className="flex flex-col gap-1">
-                                                                    <div className="font-bold text-gray-800 flex items-center gap-1 cursor-pointer hover:text-amber-600 transition text-xs md:text-sm" onClick={() => openEditModal(student)}>
-                                                                        <span className="truncate max-w-[80px] md:max-w-none">{student.name}</span>
-                                                                        <span className="text-[9px] md:text-[10px] font-mono text-slate-400 bg-slate-50 px-1 rounded">[{student.id}]</span>
-                                                                        {student.isHidden && <Icon name="EyeOff" size={12} className="text-gray-400" />}
-                                                                        {student.grade && <span className="text-[10px] md:text-xs text-slate-500 bg-slate-100 px-1 py-0.5 rounded border border-slate-200">小{student.grade}</span>}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1 md:gap-2 no-print">
-                                                                        {student.birthday && <div className="text-[9px] md:text-[10px] text-gray-400 flex items-center gap-0.5"><Icon name="Calendar" size={10} />{student.birthday.substring(5).replace('-', '/')}</div>}
-                                                                        <div className="flex items-center gap-1 text-[9px] md:text-[10px] text-gray-500 bg-gray-100 px-1 rounded ml-auto">
-                                                                            <span>初期:</span><input type="number" defaultValue={student.initialPoints} onBlur={(e) => updateStudentInitialPoints(student.id, e.target.value)} className="w-6 md:w-8 bg-transparent text-right border-b border-gray-300 focus:border-amber-400 outline-none" />
-                                                                        </div>
-                                                                    </div>
+                                                                <div className="flex items-center gap-1 no-print text-[9px]">
+                                                                    {student.birthday && <div className="text-gray-400 flex items-center gap-0.5"><Icon name="Calendar" size={9} />{student.birthday.substring(5).replace('-', '/')}</div>}
+                                                                    <div className="text-gray-500 bg-gray-100 px-1 rounded ml-auto flex items-center gap-1">初期:<input type="number" defaultValue={student.initialPoints} onBlur={(e) => updateStudentInitialPoints(student.id, e.target.value)} className="w-6 bg-transparent text-right outline-none" /></div>
                                                                 </div>
-                                                            </td>
-                                                            <td className={`p-1 md:p-2 text-center border-r font-medium text-gray-700 text-xs md:text-sm sticky left-[10.5rem] md:left-[15.5rem] z-20 print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white'}`}>
-                                                                {stats.presentCount}
-                                                            </td>
-                                                            <td className={`p-1 md:p-2 text-center border-r transition-colors relative sticky left-[13.5rem] md:left-[19.5rem] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:static print:shadow-none ${student.isHidden ? 'bg-gray-100' : 'bg-amber-50 group-hover:bg-amber-100'}`}>
-                                                                <div className="flex flex-col items-center justify-center h-full gap-0.5">
-                                                                    <div className="font-bold text-sm md:text-lg text-amber-700">{stats.hkp}</div>
-                                                                    {nearGift && !student.isHidden && (
-                                                                        <div className="bg-red-500 text-white text-[8px] md:text-[9px] px-1.5 py-0.5 rounded-full shadow-sm border border-white flex items-center gap-0.5 whitespace-nowrap no-print z-[100]">
-                                                                            <Icon name="Gift" size={8} /><span>次GET!</span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-
-                                                            {sundaysByMonth.map(group => (
-                                                                group.dates.map((date, i) => {
-                                                                    const dateKey = formatDateKey(date);
-                                                                    const key = `${student.id}_${dateKey}`;
-                                                                    const status = attendance[key];
-                                                                    const isBirthWeek = isBirthdayNear(student.birthday, date);
-                                                                    const borderClass = i === 0 ? "border-l-2 border-l-gray-300" : "border-l border-gray-100";
-                                                                    return (
-                                                                        <td key={dateKey} className={`p-1 relative ${borderClass} ${bonusMonths[group.key] && !student.isHidden ? 'bg-yellow-50/30' : ''}`}>
-                                                                            {isBirthWeek && !student.isHidden && <div className="absolute -top-1 -right-1 z-10 animate-bounce no-print"><span className="text-base md:text-lg drop-shadow-sm filter">🎂</span></div>}
-                                                                            <button onClick={() => toggleAttendance(student.id, dateKey)} disabled={student.isHidden} className={`w-full h-8 md:h-10 min-w-[28px] md:min-w-[36px] rounded-md flex items-center justify-center transition-all duration-200 border ${getCellColor(status)} print:border-black print:h-8 ${student.isHidden ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                                                                {status && <Icon name={getStatusIcon(status)} size={14} className="md:w-4 md:h-4" />}
-                                                                            </button>
-                                                                        </td>
-                                                                    );
-                                                                })
-                                                            ))}
-                                                            
-                                                            <td className="p-1 md:p-2 border-l">
-                                                                <input type="text" defaultValue={student.memo} onBlur={(e) => { if(e.target.value !== student.memo) updateStudentMemo(student.id, e.target.value); }} placeholder="..." disabled={student.isHidden} className="w-full bg-transparent border-b border-transparent focus:border-amber-400 focus:outline-none text-[10px] md:text-xs py-1 print:border-none disabled:opacity-50" />
-                                                            </td>
-                                                            <td className="p-1 md:p-2 text-center no-print">
-                                                                <button onClick={() => { setStudentToDelete(student); setIsDeleteModalOpen(true); }} className="text-gray-300 hover:text-red-500 transition p-1 md:p-2"><Icon name="Trash2" size={14} className="md:w-4 md:h-4" /></button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })
-                                            )}
+                                                            </div>
+                                                        </td>
+                                                        <td className={`p-1 text-center font-medium text-gray-700 sticky left-[11.5rem] md:left-[15rem] z-20 border-r print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white'}`}>
+                                                            {stats.presentCount}
+                                                        </td>
+                                                        <td className={`p-1 text-center border-r sticky left-[14.5rem] md:left-[19rem] z-20 print:static shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:shadow-none ${student.isHidden ? 'bg-gray-100' : 'bg-amber-50 group-hover:bg-amber-100'}`}>
+                                                            <div className="font-bold text-amber-700 text-sm md:text-base">{stats.hkp}</div>
+                                                        </td>
+                                                        {sundaysByMonth.map(g => g.dates.map(d => {
+                                                            const dk = formatDateKey(d);
+                                                            const st = attendance[`${student.id}_${dk}`];
+                                                            const isBirth = isBirthdayNear(student.birthday, d);
+                                                            return (
+                                                                <td key={dk} className={`p-1 relative border-l border-gray-100 ${bonusMonths[g.key] && !student.isHidden ? 'bg-yellow-50/30' : ''}`}>
+                                                                    {isBirth && !student.isHidden && <div className="absolute -top-1 -right-1 z-10 animate-bounce no-print">🎂</div>}
+                                                                    <button onClick={() => toggleAttendance(student.id, dk)} disabled={student.isHidden} className={`w-full h-8 md:h-9 rounded-md flex items-center justify-center transition border ${getCellColor(st)} print:border-black print:h-7 ${student.isHidden ? 'opacity-30' : ''}`}>
+                                                                        {st && <Icon name={getStatusIcon(st)} size={14} />}
+                                                                    </button>
+                                                                </td>
+                                                            );
+                                                        }))}
+                                                        <td className="p-1 border-l"><input type="text" defaultValue={student.memo} onBlur={(e) => updateStudentMemo(student.id, e.target.value)} disabled={student.isHidden} className="w-full bg-transparent border-b border-transparent focus:border-amber-400 outline-none text-[10px] py-1 disabled:opacity-30" /></td>
+                                                        <td className="p-1 text-center no-print"><button onClick={() => { setStudentToDelete(student); setIsDeleteModalOpen(true); }} className="text-gray-300 hover:text-red-500"><Icon name="Trash2" size={14} /></button></td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
                         </div>
                     </main>
-                    
-                    {/* フッター */}
-                    <footer className="bg-white border-t border-gray-200 p-2 md:p-4 z-20 no-print">
-                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
-                            <div className="flex flex-wrap gap-2 md:gap-4 text-[10px] md:text-xs text-gray-600 justify-center">
-                                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-green-100 border border-green-300"></span> 出席 (+10P)</div>
-                                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-red-100 border border-red-300"></span> 欠席</div>
-                                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded bg-gray-200 border border-gray-300"></span> CS休み</div>
-                                <div className="flex items-center gap-1"><span className="font-bold text-amber-600 bg-yellow-100 px-1 rounded">★3倍</span> 月間は+30P</div>
+
+                    <footer className="bg-white border-t border-gray-200 p-2 md:p-3 no-print z-[60]">
+                        <div className="max-w-full mx-auto flex flex-col md:flex-row items-center justify-between gap-2">
+                            <div className="flex flex-wrap gap-3 text-[10px] md:text-xs text-gray-600 justify-center">
+                                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span> 出席(+10P)</div>
+                                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span> 欠席</div>
+                                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-200 border border-gray-300"></span> CS休み</div>
+                                <div className="flex items-center gap-1 font-bold text-amber-600">★3倍月間は出席ごとに +30P</div>
                             </div>
-                            <div className="text-gray-400 text-xs font-medium">東広島めぐみ教会 CS出席管理</div>
+                            <div className="text-gray-400 text-[10px]">東広島めぐみ教会 CS出席管理</div>
                         </div>
                     </footer>
 
-                    {/* モーダル類 */}
-                    {isPrintModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
-                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center justify-center gap-2"><Icon name="Printer" /> 印刷する期間を選択</h3>
-                                <div className="flex flex-col gap-3">
-                                    <button onClick={() => executePrint('first')} className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium shadow-sm transition flex items-center justify-center gap-2">上半期 (4月〜9月) を印刷</button>
-                                    <button onClick={() => executePrint('second')} className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-sm transition flex items-center justify-center gap-2">下半期 (10月〜3月) を印刷</button>
-                                </div>
-                                <button onClick={() => setIsPrintModalOpen(false)} className="mt-6 text-gray-500 hover:text-gray-700 text-sm underline">キャンセル</button>
-                            </div>
-                        </div>
-                    )}
-
                     {isAddModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 animate-fadeIn no-print">
                             <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
-                                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Icon name="UserPlus" className="text-amber-500" />{editingStudent ? "生徒情報を編集" : "生徒を登録"}</h2>
+                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Icon name="UserPlus" className="text-amber-500" />{editingStudent ? "生徒編集" : "生徒登録"}</h2>
                                 <form onSubmit={handleSaveStudent}>
                                     <div className="flex gap-4 mb-4">
-                                        <div className="flex-[2]"><label className="block text-sm font-medium text-gray-700 mb-1">お名前 <span className="text-red-500">*</span></label><input type="text" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none" placeholder="例: 山田 太郎" autoFocus /></div>
-                                        <div className="flex-1"><label className="block text-sm font-medium text-gray-700 mb-1">学年</label><select value={newStudentGrade} onChange={(e) => setNewStudentGrade(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none bg-white"><option value="">選択</option><option value="1">小1</option><option value="2">小2</option><option value="3">小3</option><option value="4">小4</option><option value="5">小5</option><option value="6">小6</option></select></div>
+                                        <div className="flex-[2]"><label className="block text-sm font-medium mb-1">お名前 *</label><input type="text" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500" placeholder="例: 山田 太郎" autoFocus /></div>
+                                        <div className="flex-1"><label className="block text-sm font-medium mb-1">学年</label><select value={newStudentGrade} onChange={(e) => setNewStudentGrade(e.target.value)} className="w-full p-2 border rounded-lg outline-none bg-white"><option value="">選択</option>{['1','2','3','4','5','6'].map(g => <option key={g} value={g}>小{g}</option>)}</select></div>
                                     </div>
                                     <div className="flex gap-4 mb-6">
-                                        <div className="flex-1"><label className="block text-sm font-medium text-gray-700 mb-1">誕生日 (任意)</label><input type="date" value={newStudentBirthday} onChange={(e) => setNewStudentBirthday(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none" /></div>
-                                        <div className="w-24"><label className="block text-sm font-medium text-gray-700 mb-1">初期P</label><input type="number" value={newStudentInitialPoints} onChange={(e) => setNewStudentInitialPoints(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-right" /></div>
+                                        <div className="flex-1"><label className="block text-sm font-medium mb-1">誕生日 (任意)</label><input type="date" value={newStudentBirthday} onChange={(e) => setNewStudentBirthday(e.target.value)} className="w-full p-2 border rounded-lg outline-none" /></div>
+                                        <div className="w-24"><label className="block text-sm font-medium mb-1">初期P</label><input type="number" value={newStudentInitialPoints} onChange={(e) => setNewStudentInitialPoints(e.target.value)} className="w-full p-2 border rounded-lg outline-none text-right" /></div>
                                     </div>
-                                    {editingStudent && (<div className="mb-6 p-3 bg-gray-50 rounded-lg border border-gray-200"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={newStudentIsHidden} onChange={(e) => setNewStudentIsHidden(e.target.checked)} className="w-4 h-4 text-amber-500 rounded focus:ring-amber-500" /><span className="text-sm text-gray-700">この生徒をリストに表示しない (非表示)</span></label></div>)}
-                                    <div className="flex justify-end gap-3"><button type="button" onClick={closeModal} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition text-sm">キャンセル</button><button type="submit" disabled={!newStudentName.trim()} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-lg font-medium transition shadow-sm text-sm">{editingStudent ? "更新する" : "登録する"}</button></div>
+                                    {editingStudent && <div className="mb-6 p-2 bg-gray-50 rounded-lg"><label className="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" checked={newStudentIsHidden} onChange={(e) => setNewStudentIsHidden(e.target.checked)} className="accent-amber-500" />リストに表示しない (非表示)</label></div>}
+                                    <div className="flex justify-end gap-3"><button type="button" onClick={closeModal} className="px-4 py-2 text-gray-500">キャンセル</button><button type="submit" disabled={!newStudentName.trim()} className="px-6 py-2 bg-amber-500 text-white rounded-lg font-bold shadow hover:bg-amber-600">保存</button></div>
                                 </form>
                             </div>
                         </div>
                     )}
 
-                    {isViewConfigModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
-                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Icon name="ListFilter" className="text-amber-500" />リスト表示設定</h3>
-                                <div className="mb-6"><label className="block text-sm font-bold text-gray-700 mb-2">表示オプション</label><label className="flex items-center p-2 rounded hover:bg-gray-50 cursor-pointer border border-gray-200"><input type="checkbox" checked={viewConfig.showHidden} onChange={(e) => setViewConfig({...viewConfig, showHidden: e.target.checked})} className="mr-2 text-amber-500 focus:ring-amber-500"/><span className="text-sm">非表示設定の生徒も表示する</span></label></div>
-                                <div className="mb-6"><label className="block text-sm font-bold text-gray-700 mb-2">並び替え (ソート)</label><div className="space-y-2">{[{ val: 'manual', label: '標準 (登録順)' }, { val: 'grade', label: '学年順' }, { val: 'points_desc', label: 'HKP順 (多い順)' }, { val: 'birthday', label: '誕生日順' }].map(opt => (<label key={opt.val} className="flex items-center p-2 rounded hover:bg-gray-50 cursor-pointer"><input type="radio" name="sort" value={opt.val} checked={viewConfig.sort === opt.val} onChange={(e) => setViewConfig({...viewConfig, sort: e.target.value})} className="mr-2 text-amber-500 focus:ring-amber-500"/><span className="text-sm">{opt.label}</span></label>))}</div></div>
-                                <div className="flex justify-end"><button onClick={() => setIsViewConfigModalOpen(false)} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition shadow-sm text-sm">閉じる</button></div>
+                    {isPrintModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 no-print">
+                            <div className="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl">
+                                <h3 className="font-bold text-lg mb-6 flex items-center justify-center gap-2"><Icon name="Printer" /> 印刷期間を選択</h3>
+                                <div className="grid gap-3">
+                                    <button onClick={() => executePrint('first')} className="py-3 bg-amber-500 text-white rounded-lg font-bold shadow">上半期 (4-9月)</button>
+                                    <button onClick={() => executePrint('second')} className="py-3 bg-blue-500 text-white rounded-lg font-bold shadow">下半期 (10-3月)</button>
+                                </div>
+                                <button onClick={() => setIsPrintModalOpen(false)} className="mt-6 text-gray-400 underline">キャンセル</button>
                             </div>
                         </div>
                     )}
 
-                    {isDataModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
-                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center justify-center gap-2"><Icon name="Database" className="text-amber-500" />データ管理</h3>
-                                <div className="flex flex-col gap-4">
-                                    <button onClick={handleExportData} className="w-full py-4 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg shadow-sm transition flex flex-col items-center gap-2 group"><Icon name="Save" size={24} className="text-amber-500 group-hover:scale-110 transition-transform" /><span className="font-bold">ファイルに保存</span></button>
-                                    <div className="relative w-full"><input type="file" accept=".json" onChange={handleImportData} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"/><div className="w-full py-4 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg shadow-sm transition flex flex-col items-center gap-2 group"><Icon name="Upload" size={24} className="text-blue-500 group-hover:scale-110 transition-transform" /><span className="font-bold">ファイルから復元</span></div></div>
+                    {isViewConfigModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 no-print">
+                            <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Icon name="ListFilter" className="text-amber-500" /> 表示設定</h3>
+                                <div className="space-y-4">
+                                    <label className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50"><input type="checkbox" checked={viewConfig.showHidden} onChange={(e) => setViewConfig({...viewConfig, showHidden: e.target.checked})} className="accent-amber-500" /><span className="text-sm">非表示設定の生徒も表示する</span></label>
+                                    <div><label className="block text-sm font-bold mb-2">並び替え</label><div className="grid grid-cols-1 gap-2">
+                                        {[{ val: 'manual', label: '登録順' }, { val: 'grade', label: '学年順' }, { val: 'points_desc', label: 'HKP順' }, { val: 'birthday', label: '誕生日順' }].map(o => (
+                                            <label key={o.val} className="flex items-center gap-2 p-2 rounded cursor-pointer border hover:bg-amber-50"><input type="radio" name="srt" checked={viewConfig.sort === o.val} onChange={() => setViewConfig({...viewConfig, sort: o.val})} className="accent-amber-500" /><span className="text-sm">{o.label}</span></label>
+                                        ))}
+                                    </div></div>
                                 </div>
-                                <button onClick={() => setIsDataModalOpen(false)} className="mt-6 text-gray-500 hover:text-gray-700 text-sm underline">閉じる</button>
+                                <button onClick={() => setIsViewConfigModalOpen(false)} className="mt-6 w-full py-2 bg-amber-500 text-white rounded-lg font-bold">閉じる</button>
                             </div>
                         </div>
                     )}
 
                     {isDeleteModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn no-print">
-                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
-                                <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="Trash2" size={24} /></div>
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">削除しますか？</h3>
-                                <p className="text-sm text-gray-600 mb-6">「{studentToDelete?.name}」さんのデータを削除します。<br/>この操作は元に戻せません。</p>
-                                <div className="flex justify-center gap-3"><button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition text-sm font-medium">キャンセル</button><button onClick={executeDeleteStudent} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition shadow-sm text-sm">削除実行</button></div>
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 no-print">
+                            <div className="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl">
+                                <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="Trash2" /></div>
+                                <h3 className="font-bold text-lg mb-2">生徒データを削除しますか？</h3>
+                                <p className="text-sm text-gray-500 mb-6">「{studentToDelete?.name}」さんのデータは元に戻せません。</p>
+                                <div className="flex gap-3"><button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2 bg-gray-100 rounded-lg">やめる</button><button onClick={executeDeleteStudent} className="flex-1 py-2 bg-red-500 text-white rounded-lg font-bold">削除実行</button></div>
                             </div>
                         </div>
                     )}
