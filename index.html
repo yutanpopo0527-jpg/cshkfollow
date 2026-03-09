@@ -39,7 +39,7 @@
         
         @media print {
             @page {
-                size: B4 landscape; /* B4 横向き */
+                size: B4 landscape;
                 margin: 5mm; 
             }
             body { 
@@ -71,12 +71,19 @@
         .animate-fadeIn {
             animation: fadeIn 0.2s ease-out forwards;
         }
+        
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(-5%); }
+            50% { transform: translateY(5%); }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 2s infinite;
+        }
     </style>
 </head>
 <body class="bg-amber-50 text-slate-800 font-sans flex flex-col min-h-screen text-xs md:text-sm">
     <div id="root" class="flex-grow flex flex-col h-screen"></div>
 
-    <!-- type="text/babel" に data-type="module" を追加してFirebase v10をインポート可能にする -->
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, increment, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -95,12 +102,10 @@
           appId: "1:696908221772:web:0ad30910bd6c7493bbd3e9"
         };
 
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
         const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
-        let db;
-        if (isConfigured) {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-        }
 
         // --- ヘルパー関数: 誕生日判定 ---
         const isBirthdayNear = (studentBirthdayStr, sundayDate) => {
@@ -136,9 +141,9 @@
             Edit: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>),
             ListFilter: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>),
             Database: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>),
-            Save: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>),
-            Upload: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>),
-            EyeOff: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>)
+            EyeOff: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>),
+            GenderMale: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500"><circle cx="10" cy="14" r="5"/><path d="M14 10l7-7"/><path d="M21 9V3h-6"/></svg>),
+            GenderFemale: (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500"><circle cx="12" cy="8" r="5"/><path d="M12 13v8"/><path d="M9 17h6"/></svg>)
         };
 
         const Icon = ({ name, size = 18, className }) => {
@@ -188,11 +193,29 @@
             const initialSemester = (currentMonth >= 4 && currentMonth <= 9) ? "first" : "second";
             const initialFiscalYear = (currentMonth >= 1 && currentMonth <= 3) ? today.getFullYear() - 1 : today.getFullYear();
 
+            // --- URLパラメータを解析して初期フィルタを決定するロジック ---
+            const initialFilters = useMemo(() => {
+                const params = new URLSearchParams(window.location.search);
+                const g = params.get('g'); // 1〜6
+                const s = params.get('s'); // male or female
+                return {
+                    sort: 'manual',
+                    filterGrades: g ? [g] : [],
+                    filterBirthMonth: 'all',
+                    filterGender: s || 'all',
+                    showHidden: false
+                };
+            }, []);
+
+            // --- State ---
             const [classInfo, setClassInfo] = useState({ fiscalYear: initialFiscalYear, semester: initialSemester, grade: [], gender: "", teacher: "" });
             const [students, setStudents] = useState([]);
             const [attendance, setAttendance] = useState({});
             const [bonusMonths, setBonusMonths] = useState({});
-            const [viewConfig, setViewConfig] = useState({ sort: 'manual', filterGrades: [], filterBirthMonth: 'all', showHidden: false });
+            
+            // リストの表示設定 (初期値をURLパラメータから取得)
+            const [viewConfig, setViewConfig] = useState(initialFilters);
+            
             const [isAddModalOpen, setIsAddModalOpen] = useState(false);
             const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
             const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -200,14 +223,20 @@
             const [isDataModalOpen, setIsDataModalOpen] = useState(false);
             const [studentToDelete, setStudentToDelete] = useState(null);
             const [editingStudent, setEditingStudent] = useState(null);
+            
             const [newStudentName, setNewStudentName] = useState("");
             const [newStudentGrade, setNewStudentGrade] = useState("");
+            const [newStudentGender, setNewStudentGender] = useState(""); 
             const [newStudentBirthday, setNewStudentBirthday] = useState("");
             const [newStudentInitialPoints, setNewStudentInitialPoints] = useState(0);
             const [newStudentIsHidden, setNewStudentIsHidden] = useState(false);
 
+            // ==========================================
+            // Firestore 購読
+            // ==========================================
             useEffect(() => {
                 if (!isConfigured) return;
+
                 const unsubClass = onSnapshot(doc(db, 'cs_settings', 'classInfo'), doc => {
                     if (doc.exists()) {
                         const data = doc.data();
@@ -225,6 +254,7 @@
                 return () => { unsubClass(); unsubAttendance(); unsubBonus(); unsubStudents(); };
             }, []);
 
+            // --- Calculation & Logic ---
             const sundays = useMemo(() => {
                 const dates = [];
                 const year = parseInt(classInfo.fiscalYear);
@@ -271,6 +301,7 @@
                 let list = students.map(s => ({ ...s, stats: calculateStats(s) }));
                 if (!viewConfig.showHidden) list = list.filter(s => !s.isHidden);
                 if (viewConfig.filterGrades.length > 0) list = list.filter(s => viewConfig.filterGrades.includes(s.grade));
+                if (viewConfig.filterGender !== 'all') list = list.filter(s => s.gender === viewConfig.filterGender);
                 if (viewConfig.filterBirthMonth !== 'all') {
                     const target = parseInt(viewConfig.filterBirthMonth);
                     list = list.filter(s => s.birthday && (new Date(s.birthday).getMonth() + 1) === target);
@@ -285,6 +316,7 @@
                 return list;
             }, [students, attendance, bonusMonths, viewConfig, sundays]);
 
+            // --- Handlers ---
             const handleClassInfoChange = (key, value) => {
                 const newInfo = { ...classInfo, [key]: value };
                 setClassInfo(newInfo);
@@ -297,8 +329,7 @@
                 const currentStatus = attendance[key];
                 let nextStatus = currentStatus === 'present' ? 'absent' : (currentStatus === 'absent' ? 'holiday' : (currentStatus === 'holiday' ? null : 'present'));
                 const d = new Date(dateKey);
-                const isBonus = bonusMonths[`${d.getFullYear()}-${d.getMonth() + 1}`];
-                const points = isBonus ? 30 : 10;
+                const points = bonusMonths[`${d.getFullYear()}-${d.getMonth() + 1}`] ? 30 : 10;
                 let diff = (currentStatus !== 'present' && nextStatus === 'present') ? points : ((currentStatus === 'present' && nextStatus !== 'present') ? -points : 0);
                 try {
                     const batch = writeBatch(db);
@@ -312,39 +343,24 @@
             const toggleBonusMonth = async (monthKey) => {
                 if (!isConfigured) return;
                 const isNowBonus = !!bonusMonths[monthKey];
-                const adjustment = isNowBonus ? -20 : 20; // 30 -> 10 or 10 -> 30
+                const adjustment = isNowBonus ? -20 : 20; 
                 const [y, m] = monthKey.split('-').map(Number);
                 const monthSundays = sundays.filter(d => d.getFullYear() === y && d.getMonth() + 1 === m).map(formatDateKey);
                 try {
                     const batch = writeBatch(db);
                     batch.set(doc(db, 'cs_settings', 'bonusMonths'), { [monthKey]: isNowBonus ? deleteField() : true }, { merge: true });
                     students.forEach(student => {
-                        let presentCountInMonth = 0;
-                        monthSundays.forEach(dateKey => { if (attendance[`${student.id}_${dateKey}`] === 'present') presentCountInMonth++; });
-                        if (presentCountInMonth > 0) {
-                            batch.update(doc(db, 'students', String(student.id)), { pointBalance: increment(presentCountInMonth * adjustment) });
-                        }
+                        let count = 0; monthSundays.forEach(dk => { if (attendance[`${student.id}_${dk}`] === 'present') count++; });
+                        if (count > 0) batch.update(doc(db, 'students', String(student.id)), { pointBalance: increment(count * adjustment) });
                     });
                     await batch.commit();
                 } catch (e) { console.error(e); }
             };
 
-            // 初期HKP更新ロジック: ポイント管理アプリと連動させるため、現在の残高も調整する
             const updateStudentInitialPoints = async (id, v) => {
                 if (!isConfigured) return;
-                const newVal = parseInt(v) || 0;
-                const student = students.find(s => s.id === id);
-                if (!student) return;
-                
-                const oldVal = student.initialPoints || 0;
-                const diff = newVal - oldVal; // 以前の初期値との差分
-                
-                try {
-                    await updateDoc(doc(db, 'students', String(id)), { 
-                        initialPoints: newVal,
-                        pointBalance: increment(diff) // 差分を残高に加算することで連動させる
-                    });
-                } catch (e) { console.error(e); }
+                const newVal = parseInt(v) || 0, s = students.find(x => x.id === id);
+                if (s) await updateDoc(doc(db, 'students', String(id)), { initialPoints: newVal, pointBalance: increment(newVal - (s.initialPoints || 0)) });
             };
 
             const handleSaveStudent = async (e) => {
@@ -352,50 +368,28 @@
                 if (!newStudentName.trim()) return;
                 try {
                     if (editingStudent) {
-                        // モーダル編集時も初期HKPの変更をHKP（残高）に反映させる
-                        const oldInitial = editingStudent.initialPoints || 0;
-                        const newInitial = parseInt(newStudentInitialPoints) || 0;
-                        const initialDiff = newInitial - oldInitial;
-
-                        await updateDoc(doc(db, 'students', String(editingStudent.id)), { 
-                            name: newStudentName, 
-                            grade: newStudentGrade, 
-                            birthday: newStudentBirthday, 
-                            initialPoints: newInitial, 
-                            pointBalance: increment(initialDiff), // 差分を同期
-                            isHidden: newStudentIsHidden 
-                        });
+                        const oldInit = editingStudent.initialPoints || 0, newInit = parseInt(newStudentInitialPoints) || 0;
+                        await updateDoc(doc(db, 'students', String(editingStudent.id)), { name: newStudentName, grade: newStudentGrade, gender: newStudentGender, birthday: newStudentBirthday, initialPoints: newInit, pointBalance: increment(newInit - oldInit), isHidden: newStudentIsHidden });
                     } else {
                         const ids = students.map(s => parseInt(s.id)).filter(id => !isNaN(id));
                         const newId = String((ids.length > 0 ? Math.max(...ids) : 0) + 1);
-                        await setDoc(doc(db, 'students', newId), { 
-                            name: newStudentName, 
-                            grade: newStudentGrade, 
-                            birthday: newStudentBirthday, 
-                            initialPoints: parseInt(newStudentInitialPoints) || 0, 
-                            pointBalance: parseInt(newStudentInitialPoints) || 0, 
-                            memo: "", 
-                            isHidden: newStudentIsHidden, 
-                            sortIndex: students.length 
-                        });
+                        await setDoc(doc(db, 'students', newId), { name: newStudentName, grade: newStudentGrade, gender: newStudentGender, birthday: newStudentBirthday, initialPoints: parseInt(newStudentInitialPoints) || 0, pointBalance: parseInt(newStudentInitialPoints) || 0, memo: "", isHidden: newStudentIsHidden, sortIndex: students.length });
                     }
-                    closeModal();
+                    setIsAddModalOpen(false);
                 } catch (e) { console.error(e); }
             };
 
-            const openAddModal = () => { setEditingStudent(null); setNewStudentName(""); setNewStudentGrade(""); setNewStudentBirthday(""); setNewStudentInitialPoints(0); setNewStudentIsHidden(false); setIsAddModalOpen(true); };
-            const openEditModal = (s) => { setEditingStudent(s); setNewStudentName(s.name); setNewStudentGrade(s.grade || ""); setNewStudentBirthday(s.birthday || ""); setNewStudentInitialPoints(s.initialPoints || 0); setNewStudentIsHidden(!!s.isHidden); setIsAddModalOpen(true); };
+            const openAddModal = () => { setEditingStudent(null); setNewStudentName(""); setNewStudentGrade(""); setNewStudentGender(""); setNewStudentBirthday(""); setNewStudentInitialPoints(0); setNewStudentIsHidden(false); setIsAddModalOpen(true); };
+            const openEditModal = (s) => { setEditingStudent(s); setNewStudentName(s.name); setNewStudentGrade(s.grade || ""); setNewStudentGender(s.gender || ""); setNewStudentBirthday(s.birthday || ""); setNewStudentInitialPoints(s.initialPoints || 0); setNewStudentIsHidden(!!s.isHidden); setIsAddModalOpen(true); };
             const closeModal = () => setIsAddModalOpen(false);
             const executeDeleteStudent = async () => { if (studentToDelete) { await deleteDoc(doc(db, 'students', String(studentToDelete.id))); setIsDeleteModalOpen(false); } };
+            const updateStudentMemo = (id, t) => { updateDoc(doc(db, 'students', String(id)), { memo: t }); };
             
-            const updateStudentMemo = (id, t) => updateDoc(doc(db, 'students', String(id)), { memo: t });
             const moveStudent = async (idx, dir) => {
                 const list = [...students];
                 if (dir === 'up' && idx > 0) [list[idx], list[idx-1]] = [list[idx-1], list[idx]];
                 else if (dir === 'down' && idx < list.length - 1) [list[idx], list[idx+1]] = [list[idx+1], list[idx]];
-                const batch = writeBatch(db);
-                list.forEach((s, i) => batch.update(doc(db, 'students', String(s.id)), { sortIndex: i }));
-                await batch.commit();
+                const batch = writeBatch(db); list.forEach((s, i) => batch.update(doc(db, 'students', String(s.id)), { sortIndex: i })); await batch.commit();
             };
 
             const exportCSV = () => {
@@ -421,7 +415,10 @@
                 <div className="flex flex-col h-full min-h-screen">
                     <header className="bg-white shadow-sm border-b border-amber-200 sticky top-0 z-[60] no-print">
                         <div className="max-w-full mx-auto px-4 py-2 md:py-3 flex flex-col md:flex-row items-center justify-between gap-3">
-                            <div className="flex items-center gap-2"><div className="p-1.5 md:p-2 bg-amber-100 rounded-lg text-amber-600"><Icon name="Church" /></div><h1 className="text-lg md:text-xl font-bold text-gray-800">教会学校 出席フォロー表</h1></div>
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 md:p-2 bg-amber-100 rounded-lg text-amber-600"><Icon name="Church" /></div>
+                                <h1 className="text-lg md:text-xl font-bold text-gray-800">教会学校 出席フォロー表</h1>
+                            </div>
                             <div className="flex items-center gap-2 bg-gray-50 p-1 md:p-1.5 rounded-lg border border-gray-200">
                                 <input type="number" value={classInfo.fiscalYear} onChange={(e) => handleClassInfoChange('fiscalYear', e.target.value)} className="w-16 md:w-20 p-1 text-center bg-white border border-gray-300 rounded-md focus:ring-amber-500 text-xs md:text-sm" />
                                 <div className="flex bg-white rounded-md border border-gray-300 overflow-hidden">
@@ -438,8 +435,8 @@
                         </div>
                         <div className="px-4 py-2 bg-amber-50/50 flex flex-wrap gap-4 text-xs md:text-sm items-center border-t border-amber-100">
                             <div className="flex items-center gap-2"><span className="font-bold text-gray-600">学年:</span><GradeSelector selectedGrades={classInfo.grade} onChange={(gs) => handleClassInfoChange('grade', gs)} /></div>
-                            <div className="flex items-center gap-2"><span className="font-bold text-gray-600">性別:</span>{['male','female'].map(g => <label key={g} className="flex items-center gap-1"><input type="radio" name="gen" checked={classInfo.gender === g} onChange={() => handleClassInfoChange('gender', g)} />{g === 'male' ? '男' : '女'}</label>)}</div>
-                            <div className="flex items-center gap-2"><span className="font-bold text-gray-600">担当者:</span><input type="text" value={classInfo.teacher} onChange={(e) => handleClassInfoChange('teacher', e.target.value)} className="border border-gray-300 rounded px-2 py-1 bg-white w-32" /></div>
+                            <div className="flex items-center gap-2"><span className="font-bold text-gray-600">性別:</span>{['male','female'].map(g => <label key={g} className="flex items-center gap-1 cursor-pointer"><input type="radio" name="gen" checked={classInfo.gender === g} onChange={() => handleClassInfoChange('gender', g)} />{g === 'male' ? '男' : '女'}</label>)}</div>
+                            <div className="flex items-center gap-2"><span className="font-bold text-gray-600 whitespace-nowrap">担当者:</span><input type="text" value={classInfo.teacher} onChange={(e) => handleClassInfoChange('teacher', e.target.value)} className="border border-gray-300 rounded px-2 py-1 bg-white w-32" /></div>
                         </div>
                     </header>
 
@@ -481,19 +478,12 @@
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
                                             {processedStudents.map((student, idx) => {
-                                                const stats = student.stats;
-                                                const originalIdx = students.findIndex(s => s.id === student.id);
+                                                const stats = student.stats, originalIdx = students.findIndex(s => s.id === student.id);
                                                 return (
                                                     <tr key={student.id} className={`hover:bg-gray-50 transition group ${student.isHidden ? 'bg-gray-100' : ''}`}>
                                                         <td className={`p-1 text-center text-gray-400 sticky left-0 z-20 border-r print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white'}`}>
                                                             <div className="flex flex-col items-center gap-1 no-print">
-                                                                {viewConfig.sort === 'manual' && (
-                                                                    <>
-                                                                        <button onClick={() => moveStudent(originalIdx, 'up')} disabled={originalIdx === 0} className="hover:text-amber-500 disabled:opacity-20"><Icon name="ArrowUp" size={12} /></button>
-                                                                        <span className="font-mono text-[10px]">{idx + 1}</span>
-                                                                        <button onClick={() => moveStudent(originalIdx, 'down')} disabled={originalIdx === students.length - 1} className="hover:text-amber-500 disabled:opacity-20"><Icon name="ArrowDown" size={12} /></button>
-                                                                    </>
-                                                                )}
+                                                                {viewConfig.sort === 'manual' && <><button onClick={() => moveStudent(originalIdx, 'up')} disabled={originalIdx === 0} className="hover:text-amber-500 disabled:opacity-20"><Icon name="ArrowUp" size={12} /></button><span className="font-mono text-[10px]">{idx + 1}</span><button onClick={() => moveStudent(originalIdx, 'down')} disabled={originalIdx === students.length - 1} className="hover:text-amber-500 disabled:opacity-20"><Icon name="ArrowDown" size={12} /></button></>}
                                                             </div>
                                                             <span className="hidden print:block">{idx+1}</span>
                                                         </td>
@@ -501,45 +491,24 @@
                                                             <div className="flex flex-col">
                                                                 <div className="font-bold flex items-center gap-1 cursor-pointer hover:text-amber-600" onClick={() => openEditModal(student)}>
                                                                     <span className="truncate max-w-[80px] md:max-w-none text-xs md:text-sm">{student.name}</span>
+                                                                    {student.gender === 'male' && <Icon name="GenderMale" size={10} />}
+                                                                    {student.gender === 'female' && <Icon name="GenderFemale" size={10} />}
                                                                     <span className="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded">[{student.id}]</span>
-                                                                    {student.isHidden && <Icon name="EyeOff" size={12} className="text-gray-400" />}
                                                                     {student.grade && <span className="text-[10px] text-slate-500 bg-slate-100 px-1 rounded whitespace-nowrap">小{student.grade}</span>}
                                                                 </div>
                                                                 <div className="flex items-center gap-1 no-print text-[9px]">
                                                                     {student.birthday && <div className="text-gray-400 flex items-center gap-0.5"><Icon name="Calendar" size={9} />{student.birthday.substring(5).replace('-', '/')}</div>}
-                                                                    <div className="text-gray-500 bg-gray-100 px-1 rounded ml-auto flex items-center gap-1 whitespace-nowrap">
-                                                                        <span>初期HKP:</span>
-                                                                        <input 
-                                                                            type="number" 
-                                                                            step="10" 
-                                                                            defaultValue={student.initialPoints} 
-                                                                            onBlur={(e) => updateStudentInitialPoints(student.id, e.target.value)} 
-                                                                            className="w-10 bg-transparent text-right outline-none border-b border-gray-300" 
-                                                                        />
-                                                                    </div>
+                                                                    <div className="text-gray-500 bg-gray-100 px-1 rounded ml-auto flex items-center gap-1">初期:<input type="number" step="10" defaultValue={student.initialPoints} onBlur={(e) => updateStudentInitialPoints(student.id, e.target.value)} className="w-8 bg-transparent text-right outline-none" /></div>
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td className={`p-1 text-center font-medium text-gray-700 sticky left-[11.5rem] md:left-[15rem] z-20 border-r print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white'}`}>
-                                                            {stats.presentCount}
-                                                        </td>
-                                                        <td className={`p-1 text-center border-r sticky left-[14.5rem] md:left-[19rem] z-20 print:static shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:shadow-none ${student.isHidden ? 'bg-gray-100' : 'bg-amber-50 group-hover:bg-amber-100'}`}>
-                                                            <div className="font-bold text-amber-700 text-sm md:text-base">{stats.hkp}</div>
-                                                        </td>
+                                                        <td className={`p-1 text-center font-medium text-gray-700 sticky left-[11.5rem] md:left-[15rem] z-20 border-r print:static ${student.isHidden ? 'bg-gray-100' : 'bg-white'}`}>{stats.presentCount}</td>
+                                                        <td className={`p-1 text-center border-r sticky left-[14.5rem] md:left-[19rem] z-20 print:static shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:shadow-none ${student.isHidden ? 'bg-gray-100' : 'bg-amber-50 group-hover:bg-amber-100'}`}><div className="font-bold text-amber-700 text-sm md:text-base">{stats.hkp}</div></td>
                                                         {sundaysByMonth.map(g => g.dates.map(d => {
-                                                            const dk = formatDateKey(d);
-                                                            const st = attendance[`${student.id}_${dk}`];
-                                                            const isBirth = isBirthdayNear(student.birthday, d);
-                                                            return (
-                                                                <td key={dk} className={`p-1 relative border-l border-gray-100 ${bonusMonths[g.key] && !student.isHidden ? 'bg-yellow-50/20' : ''}`}>
-                                                                    {isBirth && !student.isHidden && <div className="absolute -top-1 -right-1 z-10 animate-bounce no-print">🎂</div>}
-                                                                    <button onClick={() => toggleAttendance(student.id, dk)} disabled={student.isHidden} className={`w-full h-8 md:h-9 rounded-md flex items-center justify-center transition border ${getCellColor(st)} print:border-black print:h-7 ${student.isHidden ? 'opacity-30' : ''}`}>
-                                                                        {st && <Icon name={getStatusIcon(st)} size={14} />}
-                                                                    </button>
-                                                                </td>
-                                                            );
+                                                            const dk = formatDateKey(d), st = attendance[`${student.id}_${dk}`];
+                                                            return <td key={dk} className={`p-1 border-l border-gray-100 ${bonusMonths[g.key] && !student.isHidden ? 'bg-yellow-50/20' : ''}`}><button onClick={() => toggleAttendance(student.id, dk)} disabled={student.isHidden} className={`w-full h-8 md:h-9 rounded-md flex items-center justify-center transition border ${getCellColor(st)} print:border-black print:h-7 ${student.isHidden ? 'opacity-30' : ''}`}>{st && <Icon name={getStatusIcon(st)} size={14} />}</button></td>;
                                                         }))}
-                                                        <td className="p-1 border-l"><input type="text" defaultValue={student.memo} onBlur={(e) => updateStudentMemo(student.id, e.target.value)} disabled={student.isHidden} className="w-full bg-transparent border-b border-transparent focus:border-amber-400 outline-none text-[10px] py-1 disabled:opacity-30" /></td>
+                                                        <td className="p-1 border-l"><input type="text" defaultValue={student.memo} onBlur={(e) => updateStudentMemo(student.id, e.target.value)} disabled={student.isHidden} className="w-full bg-transparent border-b border-transparent focus:border-amber-400 outline-none text-[10px] py-1" /></td>
                                                         <td className="p-1 text-center no-print"><button onClick={() => { setStudentToDelete(student); setIsDeleteModalOpen(true); }} className="text-gray-300 hover:text-red-500"><Icon name="Trash2" size={14} /></button></td>
                                                     </tr>
                                                 );
@@ -572,29 +541,21 @@
                                         <div className="flex-[2]"><label className="block text-sm font-medium mb-1">お名前 *</label><input type="text" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500" placeholder="例: 山田 太郎" autoFocus /></div>
                                         <div className="flex-1"><label className="block text-sm font-medium mb-1">学年</label><select value={newStudentGrade} onChange={(e) => setNewStudentGrade(e.target.value)} className="w-full p-2 border rounded-lg outline-none bg-white"><option value="">選択</option>{['1','2','3','4','5','6'].map(g => <option key={g} value={g}>小{g}</option>)}</select></div>
                                     </div>
-                                    <div className="flex gap-4 mb-6">
-                                        <div className="flex-1"><label className="block text-sm font-medium text-gray-700 mb-1">誕生日 (任意)</label><input type="date" value={newStudentBirthday} onChange={(e) => setNewStudentBirthday(e.target.value)} className="w-full p-2 border rounded-lg outline-none" /></div>
-                                        <div className="w-24">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1 whitespace-nowrap">初期HKP</label>
-                                            <input type="number" step="10" value={newStudentInitialPoints} onChange={(e) => setNewStudentInitialPoints(e.target.value)} className="w-full p-2 border rounded-lg outline-none text-right" />
+                                    <div className="flex gap-4 mb-4">
+                                        <div className="flex-1">
+                                            <label className="block text-sm font-medium mb-1">性別</label>
+                                            <div className="flex bg-gray-100 p-1 rounded-lg">
+                                                {[{v:'',l:'なし'},{v:'male',l:'男'},{v:'female',l:'女'}].map(o => (
+                                                    <button type="button" key={o.v} onClick={() => setNewStudentGender(o.v)} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${newStudentGender === o.v ? 'bg-white shadow text-slate-800' : 'text-slate-400'}`}>{o.l}</button>
+                                                ))}
+                                            </div>
                                         </div>
+                                        <div className="flex-1"><label className="block text-sm font-medium mb-1">誕生日 (任意)</label><input type="date" value={newStudentBirthday} onChange={(e) => setNewStudentBirthday(e.target.value)} className="w-full p-2 border rounded-lg outline-none" /></div>
                                     </div>
+                                    <div className="mb-6 w-24"><label className="block text-sm font-medium mb-1">初期HKP</label><input type="number" step="10" value={newStudentInitialPoints} onChange={(e) => setNewStudentInitialPoints(e.target.value)} className="w-full p-2 border rounded-lg outline-none text-right" /></div>
                                     {editingStudent && <div className="mb-6 p-2 bg-gray-50 rounded-lg"><label className="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" checked={newStudentIsHidden} onChange={(e) => setNewStudentIsHidden(e.target.checked)} className="accent-amber-500" />リストに表示しない (非表示)</label></div>}
                                     <div className="flex justify-end gap-3"><button type="button" onClick={closeModal} className="px-4 py-2 text-gray-500">キャンセル</button><button type="submit" disabled={!newStudentName.trim()} className="px-6 py-2 bg-amber-500 text-white rounded-lg font-bold shadow hover:bg-amber-600">保存</button></div>
                                 </form>
-                            </div>
-                        </div>
-                    )}
-
-                    {isPrintModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 no-print">
-                            <div className="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl">
-                                <h3 className="font-bold text-lg mb-6 flex items-center justify-center gap-2"><Icon name="Printer" /> 印刷期間を選択</h3>
-                                <div className="grid gap-3">
-                                    <button onClick={() => executePrint('first')} className="py-3 bg-amber-500 text-white rounded-lg font-bold shadow">上半期 (4-9月)</button>
-                                    <button onClick={() => executePrint('second')} className="py-3 bg-blue-500 text-white rounded-lg font-bold shadow">下半期 (10-3月)</button>
-                                </div>
-                                <button onClick={() => setIsPrintModalOpen(false)} className="mt-6 text-gray-400 underline">キャンセル</button>
                             </div>
                         </div>
                     )}
@@ -603,28 +564,33 @@
                         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 no-print">
                             <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl">
                                 <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Icon name="ListFilter" className="text-amber-500" /> 表示設定</h3>
-                                <div className="space-y-4">
-                                    <label className="flex items-center gap-2 p-2 border rounded hover:bg-gray-50"><input type="checkbox" checked={viewConfig.showHidden} onChange={(e) => setViewConfig({...viewConfig, showHidden: e.target.checked})} className="accent-amber-500" /><span className="text-sm">非表示設定の生徒も表示する</span></label>
-                                    <div><label className="block text-sm font-bold mb-2">並び替え</label><div className="grid grid-cols-1 gap-2">
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-bold mb-2">性別で絞り込む</label>
+                                        <div className="flex bg-gray-100 p-1 rounded-xl">
+                                            {[{v:'all',l:'すべて'},{v:'male',l:'男子のみ'},{v:'female',l:'女子のみ'}].map(o => (
+                                                <button key={o.v} onClick={() => setViewConfig({...viewConfig, filterGender: o.v})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${viewConfig.filterGender === o.v ? 'bg-white shadow text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}>{o.l}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div><label className="block text-sm font-bold mb-2">並び替え</label><div className="grid gap-2">
                                         {[{ val: 'manual', label: '登録順' }, { val: 'grade', label: '学年順' }, { val: 'points_desc', label: 'HKP順' }, { val: 'birthday', label: '誕生日順' }].map(o => (
-                                            <label key={o.val} className="flex items-center gap-2 p-2 rounded cursor-pointer border hover:bg-amber-50"><input type="radio" name="srt" checked={viewConfig.sort === o.val} onChange={() => setViewConfig({...viewConfig, sort: o.val})} className="accent-amber-500" /><span className="text-sm">{o.label}</span></label>
+                                            <label key={o.val} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer border transition ${viewConfig.sort === o.val ? 'bg-amber-50 border-amber-300' : 'hover:bg-gray-50 border-gray-200'}`}><input type="radio" name="srt" checked={viewConfig.sort === o.val} onChange={() => setViewConfig({...viewConfig, sort: o.val})} className="accent-amber-500" /><span className="text-sm">{o.label}</span></label>
                                         ))}
                                     </div></div>
+                                    <label className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg"><input type="checkbox" checked={viewConfig.showHidden} onChange={(e) => setViewConfig({...viewConfig, showHidden: e.target.checked})} className="accent-amber-500" /><span className="text-sm">非表示設定の生徒も表示する</span></label>
                                 </div>
-                                <button onClick={() => setIsViewConfigModalOpen(false)} className="mt-6 w-full py-2 bg-amber-500 text-white rounded-lg font-bold">閉じる</button>
+                                <button onClick={() => setIsViewConfigModalOpen(false)} className="mt-6 w-full py-3 bg-amber-500 text-white rounded-xl font-bold">設定を閉じる</button>
                             </div>
                         </div>
                     )}
 
+                    {isPrintModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 no-print shadow-2xl"><div className="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl"><h3 className="font-bold text-lg mb-6 flex items-center justify-center gap-2"><Icon name="Printer" /> 印刷期間を選択</h3><div className="grid gap-3"><button onClick={() => executePrint('first')} className="py-3 bg-amber-500 text-white rounded-lg font-bold shadow">上半期 (4-9月)</button><button onClick={() => executePrint('second')} className="py-3 bg-blue-500 text-white rounded-lg font-bold shadow">下半期 (10-3月)</button></div><button onClick={() => setIsPrintModalOpen(false)} className="mt-6 text-gray-400 underline text-xs">キャンセル</button></div></div>
+                    )}
+
                     {isDeleteModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 no-print">
-                            <div className="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl">
-                                <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="Trash2" /></div>
-                                <h3 className="font-bold text-lg mb-2">生徒データを削除しますか？</h3>
-                                <p className="text-sm text-gray-500 mb-6">「{studentToDelete?.name}」さんのデータは元に戻せません。</p>
-                                <div className="flex gap-3"><button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2 bg-gray-100 rounded-lg">やめる</button><button onClick={executeDeleteStudent} className="flex-1 py-2 bg-red-500 text-white rounded-lg font-bold">削除実行</button></div>
-                            </div>
-                        </div>
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 no-print"><div className="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl"><div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="Trash2" /></div><h3 className="font-bold text-lg mb-2">生徒データを削除しますか？</h3><p className="text-sm text-gray-500 mb-6">「{studentToDelete?.name}」さんのデータは元に戻せません。</p><div className="flex gap-3"><button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2 bg-gray-100 rounded-lg">やめる</button><button onClick={executeDeleteStudent} className="flex-1 py-2 bg-red-500 text-white rounded-lg font-bold">削除実行</button></div></div></div>
                     )}
                 </div>
             );
