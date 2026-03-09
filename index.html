@@ -208,7 +208,7 @@
             }, []);
 
             // --- State ---
-            const [classInfo, setClassInfo] = useState({ fiscalYear: initialFiscalYear, semester: initialSemester, grade: [], gender: "", teacher: "" });
+            const [classInfo, setClassInfo] = useState({ fiscalYear: initialFiscalYear, semester: initialSemester, grade: [], gender: "", teacher: "", gradeTeachers: {} });
             const [students, setStudents] = useState([]);
             const [attendance, setAttendance] = useState({});
             const [bonusMonths, setBonusMonths] = useState({});
@@ -241,6 +241,7 @@
                     if (doc.exists()) {
                         const data = doc.data();
                         if (typeof data.grade === 'string') data.grade = data.grade ? [data.grade] : [];
+                        if (!data.gradeTeachers) data.gradeTeachers = {};
                         setClassInfo(prev => ({...prev, ...data}));
                     }
                 });
@@ -299,13 +300,38 @@
 
             const processedStudents = useMemo(() => {
                 let list = students.map(s => ({ ...s, stats: calculateStats(s) }));
+                
                 if (!viewConfig.showHidden) list = list.filter(s => !s.isHidden);
-                if (viewConfig.filterGrades.length > 0) list = list.filter(s => viewConfig.filterGrades.includes(s.grade));
-                if (viewConfig.filterGender !== 'all') list = list.filter(s => s.gender === viewConfig.filterGender);
+
+                // 学年フィルタ (ヘッダーの選択を優先)
+                if (classInfo.grade && classInfo.grade.length > 0) {
+                    list = list.filter(s => classInfo.grade.includes(s.grade));
+                } else if (viewConfig.filterGrades && viewConfig.filterGrades.length > 0) {
+                    list = list.filter(s => viewConfig.filterGrades.includes(s.grade));
+                }
+
+                // 性別フィルタ (ヘッダーの選択)
+                if (classInfo.gender) {
+                    list = list.filter(s => s.gender === classInfo.gender);
+                } else if (viewConfig.filterGender && viewConfig.filterGender !== 'all') {
+                    list = list.filter(s => s.gender === viewConfig.filterGender);
+                }
+
+                // 担当者フィルタ
+                if (classInfo.teacher && classInfo.teacher.trim() !== "") {
+                    const searchText = classInfo.teacher.trim().toLowerCase();
+                    const gTeachers = classInfo.gradeTeachers || {};
+                    const matchedGrades = Object.keys(gTeachers).filter(g => 
+                        gTeachers[g] && gTeachers[g].toLowerCase().includes(searchText)
+                    );
+                    list = list.filter(s => matchedGrades.includes(s.grade));
+                }
+
                 if (viewConfig.filterBirthMonth !== 'all') {
                     const target = parseInt(viewConfig.filterBirthMonth);
                     list = list.filter(s => s.birthday && (new Date(s.birthday).getMonth() + 1) === target);
                 }
+                
                 if (viewConfig.sort === 'grade') list.sort((a, b) => (a.grade || "9").localeCompare(b.grade || "9"));
                 else if (viewConfig.sort === 'points_desc') list.sort((a, b) => b.stats.hkp - a.stats.hkp);
                 else if (viewConfig.sort === 'birthday') list.sort((a, b) => {
@@ -313,12 +339,36 @@
                     const dA = new Date(a.birthday), dB = new Date(b.birthday);
                     return (dA.getMonth() + 1) * 100 + dA.getDate() - ((dB.getMonth() + 1) * 100 + dB.getDate());
                 });
+                
                 return list;
-            }, [students, attendance, bonusMonths, viewConfig, sundays]);
+            }, [students, attendance, bonusMonths, viewConfig, sundays, classInfo]);
 
             // --- Handlers ---
             const handleClassInfoChange = (key, value) => {
                 const newInfo = { ...classInfo, [key]: value };
+                
+                if (key === 'grade') {
+                    const selectedGrades = value;
+                    if (selectedGrades.length > 0) {
+                        const gTeachers = newInfo.gradeTeachers || {};
+                        const teachers = selectedGrades.map(g => gTeachers[g]).filter(Boolean);
+                        const uniqueTeachers = [...new Set(teachers)];
+                        newInfo.teacher = uniqueTeachers.join(", ");
+                    } else {
+                        newInfo.teacher = "";
+                    }
+                }
+                
+                if (key === 'teacher') {
+                    if (newInfo.grade && newInfo.grade.length > 0) {
+                        const newGradeTeachers = { ...(newInfo.gradeTeachers || {}) };
+                        newInfo.grade.forEach(g => {
+                            newGradeTeachers[g] = value;
+                        });
+                        newInfo.gradeTeachers = newGradeTeachers;
+                    }
+                }
+
                 setClassInfo(newInfo);
                 if (isConfigured) setDoc(doc(db, 'cs_settings', 'classInfo'), newInfo, { merge: true });
             };
