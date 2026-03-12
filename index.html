@@ -250,6 +250,8 @@
             const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
             const [isViewConfigModalOpen, setIsViewConfigModalOpen] = useState(false);
             const [isDataModalOpen, setIsDataModalOpen] = useState(false);
+            const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+            const [summarySelectedDate, setSummarySelectedDate] = useState('');
             const [studentToDelete, setStudentToDelete] = useState(null);
             const [editingStudent, setEditingStudent] = useState(null);
             
@@ -520,85 +522,70 @@
                 link.click();
             };
 
-            // --- 集計データをコピー（スプレッドシート貼り付け用 TSV） ---
+            // --- 集計コピーモーダルを開く ---
+            const openSummaryModal = () => {
+                // デフォルトは最新（最後）の日曜日
+                if (sundays.length > 0) {
+                    setSummarySelectedDate(formatDateKey(sundays[sundays.length - 1]));
+                }
+                setIsSummaryModalOpen(true);
+            };
+
+            // --- 選択された日付の集計データをコピー（スプレッドシート貼り付け用 TSV） ---
             const copySummaryData = async () => {
+                const sunday = sundays.find(d => formatDateKey(d) === summarySelectedDate);
+                if (!sunday) return;
+
                 const grades = ['1', '2', '3', '4', '5', '6'];
                 const TAB = '\t';
-                let tsv = '';
+                const dateKey = formatDateKey(sunday);
+                const dateLabel = `${sunday.getMonth() + 1}/${sunday.getDate()}`;
 
-                sundays.forEach((sunday, idx) => {
-                    const dateKey = formatDateKey(sunday);
-                    const dateLabel = `${sunday.getMonth() + 1}/${sunday.getDate()}`;
-
-                    // 各学年×男女の出席人数を集計
-                    const counts = {}; // counts['1_male'] = 3 のような形
-                    grades.forEach(g => {
-                        counts[`${g}_male`] = 0;
-                        counts[`${g}_female`] = 0;
-                    });
-
-                    students.forEach(s => {
-                        if (!s.grade || !s.gender) return;
-                        if (s.isHidden) return;
-                        const status = attendance[`${s.id}_${dateKey}`];
-                        if (status === 'present') {
-                            const key = `${s.grade}_${s.gender}`;
-                            if (counts[key] !== undefined) counts[key]++;
-                        }
-                    });
-
-                    // 日付ヘッダー行
-                    tsv += dateLabel + TAB + grades.map(g => `${g}年`).join(TAB) + TAB + '合計' + '\n';
-
-                    // 男の行
-                    let maleTotal = 0;
-                    const maleRow = grades.map(g => {
-                        const c = counts[`${g}_male`];
-                        maleTotal += c;
-                        return c;
-                    });
-                    tsv += '男' + TAB + maleRow.join(TAB) + TAB + maleTotal + '\n';
-
-                    // 女の行
-                    let femaleTotal = 0;
-                    const femaleRow = grades.map(g => {
-                        const c = counts[`${g}_female`];
-                        femaleTotal += c;
-                        return c;
-                    });
-                    tsv += '女' + TAB + femaleRow.join(TAB) + TAB + femaleTotal + '\n';
-
-                    // ゲーム行（空行）
-                    tsv += 'ゲーム' + TAB + TAB.repeat(grades.length) + (maleTotal + femaleTotal) + '\n';
-
-                    // 新来行（空行）
-                    tsv += '新来' + '\n';
-
-                    // ブロック間の空行
-                    if (idx < sundays.length - 1) tsv += '\n';
+                // 各学年×男女の出席人数を集計
+                const counts = {};
+                grades.forEach(g => {
+                    counts[`${g}_male`] = 0;
+                    counts[`${g}_female`] = 0;
                 });
+
+                students.forEach(s => {
+                    if (!s.grade || !s.gender) return;
+                    if (s.isHidden) return;
+                    const status = attendance[`${s.id}_${dateKey}`];
+                    if (status === 'present') {
+                        const key = `${s.grade}_${s.gender}`;
+                        if (counts[key] !== undefined) counts[key]++;
+                    }
+                });
+
+                let tsv = '';
+                // 日付ヘッダー行
+                tsv += dateLabel + TAB + grades.map(g => `${g}年`).join(TAB) + TAB + '合計' + '\n';
+
+                // 男の行
+                let maleTotal = 0;
+                const maleRow = grades.map(g => { const c = counts[`${g}_male`]; maleTotal += c; return c; });
+                tsv += '男' + TAB + maleRow.join(TAB) + TAB + maleTotal + '\n';
+
+                // 女の行
+                let femaleTotal = 0;
+                const femaleRow = grades.map(g => { const c = counts[`${g}_female`]; femaleTotal += c; return c; });
+                tsv += '女' + TAB + femaleRow.join(TAB) + TAB + femaleTotal + '\n';
+
+                // ゲーム行
+                tsv += 'ゲーム' + TAB + TAB.repeat(grades.length) + (maleTotal + femaleTotal) + '\n';
+                // 新来行
+                tsv += '新来';
 
                 // クリップボードにコピー
                 try {
                     await navigator.clipboard.writeText(tsv);
+                    alert(`${dateLabel} の集計データをコピーしました！\nスプレッドシートに貼り付け（Ctrl+V）してください。`);
                 } catch (e) {
                     console.error('クリップボードコピー失敗:', e);
+                    alert('コピーに失敗しました。ブラウザの権限設定を確認してください。');
                 }
-
-                // スマホの場合は共有メニューも起動
-                if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: `出席集計_${classInfo.fiscalYear}_${classInfo.semester === 'first' ? '上半期' : '下半期'}`,
-                            text: tsv
-                        });
-                    } catch (e) {
-                        // ユーザーが共有をキャンセルした場合は無視
-                        if (e.name !== 'AbortError') console.error('共有エラー:', e);
-                    }
-                } else {
-                    alert('クリップボードにコピーしました！\nスプレッドシートを開いて貼り付け（Ctrl+V）してください。');
-                }
+                setIsSummaryModalOpen(false);
             };
 
             const executePrint = (sem) => { handleClassInfoChange('semester', sem); setTimeout(() => window.print(), 500); setIsPrintModalOpen(false); };
@@ -624,7 +611,7 @@
                                 <button onClick={openAddModal} className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="UserPlus" size={14} /><span>生徒追加</span></button>
                                 <button onClick={() => setIsPrintModalOpen(true)} className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="Printer" size={14} /><span>印刷</span></button>
                                 <button onClick={exportCSV} className="flex items-center gap-1 bg-white border border-gray-300 px-2 py-1.5 rounded-lg text-gray-700 text-xs md:text-sm"><Icon name="Download" size={14} /><span>出力</span></button>
-                                <button onClick={copySummaryData} className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="Database" size={14} /><span>集計コピー</span></button>
+                                <button onClick={openSummaryModal} className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="Database" size={14} /><span>集計コピー</span></button>
                                 <button onClick={() => setIsViewConfigModalOpen(true)} className="bg-white border border-gray-300 p-2 rounded-lg"><Icon name="ListFilter" size={14} /></button>
                             </div>
                         </div>
@@ -785,6 +772,27 @@
                                     <label className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg"><input type="checkbox" checked={viewConfig.showHidden} onChange={(e) => setViewConfig({...viewConfig, showHidden: e.target.checked})} className="accent-amber-500" /><span className="text-sm">非表示設定の生徒も表示する</span></label>
                                 </div>
                                 <button onClick={() => setIsViewConfigModalOpen(false)} className="mt-6 w-full py-3 bg-amber-500 text-white rounded-xl font-bold">設定を閉じる</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {isSummaryModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 no-print animate-fadeIn">
+                            <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl">
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Icon name="Database" className="text-emerald-500" /> 集計データをコピー</h3>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-bold mb-2">コピーする日付を選択</label>
+                                    <select value={summarySelectedDate} onChange={(e) => setSummarySelectedDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                                        {[...sundays].reverse().map(d => (
+                                            <option key={formatDateKey(d)} value={formatDateKey(d)}>{`${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <p className="text-xs text-gray-400 mb-6">選択した日付の学年×男女別の出席人数がコピーされます。スプレッドシートに直接貼り付け（Ctrl+V）できます。</p>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setIsSummaryModalOpen(false)} className="flex-1 py-2.5 bg-gray-100 rounded-lg text-gray-600 font-medium">キャンセル</button>
+                                    <button onClick={copySummaryData} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg font-bold shadow hover:bg-emerald-600">コピー</button>
+                                </div>
                             </div>
                         </div>
                     )}
