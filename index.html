@@ -94,7 +94,7 @@
         // Firebaseの初期設定
         // ==========================================
         const firebaseConfig = {
-          apiKey: "AIzaSyCBDSp8nh8KltAWZSqWLxUvojtluRbfPrI",
+          apiKey: "AIzaSyBxriSl6JvV5CfJGEfDUTNXBs9RQJmI28U",
           authDomain: "hkpointapp.firebaseapp.com",
           projectId: "hkpointapp",
           storageBucket: "hkpointapp.firebasestorage.app",
@@ -106,6 +106,35 @@
         const db = getFirestore(app);
 
         const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+
+        // ==========================================
+        // Google Apps Script (GAS) 連携設定
+        // ==========================================
+        // ※ GAS側でWebアプリをデプロイした後、発行されたURLをここに貼り付けてください
+        const GAS_WEB_APP_URL = ""; // 例: "https://script.google.com/macros/s/xxxxx/exec"
+
+        // --- GASへ出席データを送信するヘルパー関数 ---
+        const sendToGoogleSheet = (student, dateKey, status) => {
+            if (!GAS_WEB_APP_URL) return; // URLが未設定なら何もしない
+            const payload = {
+                date: dateKey,
+                studentId: student.id,
+                studentName: student.name,
+                grade: student.grade || "",
+                status: status,
+                timestamp: new Date().toISOString()
+            };
+            try {
+                fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (error) {
+                console.error("スプレッドシート連携エラー:", error);
+            }
+        };
 
         // --- ヘルパー関数: 誕生日判定 ---
         const isBirthdayNear = (studentBirthdayStr, sundayDate) => {
@@ -416,6 +445,11 @@
                     else batch.update(doc(db, 'cs_settings', 'attendance'), { [key]: nextStatus });
                     if (diff !== 0) batch.update(doc(db, 'students', String(studentId)), { pointBalance: increment(diff) });
                     await batch.commit();
+                    // GASへ出席データを送信（非同期・UIブロックなし）
+                    if (nextStatus) {
+                        const student = students.find(s => s.id === studentId);
+                        if (student) sendToGoogleSheet(student, dateKey, nextStatus);
+                    }
                 } catch (e) { console.error(e); }
             };
 
@@ -486,6 +520,87 @@
                 link.click();
             };
 
+            // --- 集計データをコピー（スプレッドシート貼り付け用 TSV） ---
+            const copySummaryData = async () => {
+                const grades = ['1', '2', '3', '4', '5', '6'];
+                const TAB = '\t';
+                let tsv = '';
+
+                sundays.forEach((sunday, idx) => {
+                    const dateKey = formatDateKey(sunday);
+                    const dateLabel = `${sunday.getMonth() + 1}/${sunday.getDate()}`;
+
+                    // 各学年×男女の出席人数を集計
+                    const counts = {}; // counts['1_male'] = 3 のような形
+                    grades.forEach(g => {
+                        counts[`${g}_male`] = 0;
+                        counts[`${g}_female`] = 0;
+                    });
+
+                    students.forEach(s => {
+                        if (!s.grade || !s.gender) return;
+                        if (s.isHidden) return;
+                        const status = attendance[`${s.id}_${dateKey}`];
+                        if (status === 'present') {
+                            const key = `${s.grade}_${s.gender}`;
+                            if (counts[key] !== undefined) counts[key]++;
+                        }
+                    });
+
+                    // 日付ヘッダー行
+                    tsv += dateLabel + TAB + grades.map(g => `${g}年`).join(TAB) + TAB + '合計' + '\n';
+
+                    // 男の行
+                    let maleTotal = 0;
+                    const maleRow = grades.map(g => {
+                        const c = counts[`${g}_male`];
+                        maleTotal += c;
+                        return c;
+                    });
+                    tsv += '男' + TAB + maleRow.join(TAB) + TAB + maleTotal + '\n';
+
+                    // 女の行
+                    let femaleTotal = 0;
+                    const femaleRow = grades.map(g => {
+                        const c = counts[`${g}_female`];
+                        femaleTotal += c;
+                        return c;
+                    });
+                    tsv += '女' + TAB + femaleRow.join(TAB) + TAB + femaleTotal + '\n';
+
+                    // ゲーム行（空行）
+                    tsv += 'ゲーム' + TAB + TAB.repeat(grades.length) + (maleTotal + femaleTotal) + '\n';
+
+                    // 新来行（空行）
+                    tsv += '新来' + '\n';
+
+                    // ブロック間の空行
+                    if (idx < sundays.length - 1) tsv += '\n';
+                });
+
+                // クリップボードにコピー
+                try {
+                    await navigator.clipboard.writeText(tsv);
+                } catch (e) {
+                    console.error('クリップボードコピー失敗:', e);
+                }
+
+                // スマホの場合は共有メニューも起動
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: `出席集計_${classInfo.fiscalYear}_${classInfo.semester === 'first' ? '上半期' : '下半期'}`,
+                            text: tsv
+                        });
+                    } catch (e) {
+                        // ユーザーが共有をキャンセルした場合は無視
+                        if (e.name !== 'AbortError') console.error('共有エラー:', e);
+                    }
+                } else {
+                    alert('クリップボードにコピーしました！\nスプレッドシートを開いて貼り付け（Ctrl+V）してください。');
+                }
+            };
+
             const executePrint = (sem) => { handleClassInfoChange('semester', sem); setTimeout(() => window.print(), 500); setIsPrintModalOpen(false); };
             const getCellColor = (st) => st === 'present' ? 'bg-green-100 text-green-700 border-green-300' : (st === 'absent' ? 'bg-red-100 text-red-700 border-red-300' : (st === 'holiday' ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-white border-gray-200'));
             const getStatusIcon = (st) => st === 'present' ? 'CircleCheck' : (st === 'absent' ? 'X' : (st === 'holiday' ? 'MinusCircle' : ''));
@@ -509,6 +624,7 @@
                                 <button onClick={openAddModal} className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="UserPlus" size={14} /><span>生徒追加</span></button>
                                 <button onClick={() => setIsPrintModalOpen(true)} className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="Printer" size={14} /><span>印刷</span></button>
                                 <button onClick={exportCSV} className="flex items-center gap-1 bg-white border border-gray-300 px-2 py-1.5 rounded-lg text-gray-700 text-xs md:text-sm"><Icon name="Download" size={14} /><span>出力</span></button>
+                                <button onClick={copySummaryData} className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1.5 rounded-lg font-medium shadow-sm text-xs md:text-sm"><Icon name="Database" size={14} /><span>集計コピー</span></button>
                                 <button onClick={() => setIsViewConfigModalOpen(true)} className="bg-white border border-gray-300 p-2 rounded-lg"><Icon name="ListFilter" size={14} /></button>
                             </div>
                         </div>
@@ -689,4 +805,3 @@
     </script>
 </body>
 </html>
-
