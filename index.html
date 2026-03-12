@@ -524,9 +524,16 @@
 
             // --- 集計コピーモーダルを開く ---
             const openSummaryModal = () => {
-                // デフォルトは最新（最後）の日曜日
+                // デフォルトは端末の現在日時に最も近い日曜日
                 if (sundays.length > 0) {
-                    setSummarySelectedDate(formatDateKey(sundays[sundays.length - 1]));
+                    const now = new Date();
+                    let closest = sundays[0];
+                    let minDiff = Math.abs(now - sundays[0]);
+                    sundays.forEach(d => {
+                        const diff = Math.abs(now - d);
+                        if (diff < minDiff) { minDiff = diff; closest = d; }
+                    });
+                    setSummarySelectedDate(formatDateKey(closest));
                 }
                 setIsSummaryModalOpen(true);
             };
