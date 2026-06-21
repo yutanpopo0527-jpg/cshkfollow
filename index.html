@@ -14,8 +14,8 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Babel (JSX compilation) -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Babel (JSX compilation) - バージョンを固定して急な仕様変更を防ぐ -->
+    <script src="https://unpkg.com/@babel/standalone@7.22.20/babel.min.js"></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -85,6 +85,7 @@
     <div id="root" class="flex-grow flex flex-col h-screen"></div>
 
     <script type="text/babel" data-type="module">
+        /** @jsxRuntime classic */
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, increment, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
